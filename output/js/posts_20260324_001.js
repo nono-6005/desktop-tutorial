@@ -1,0 +1,15 @@
+{
+  account:    "mojibake_writing",
+  date:       "2026-03-24",
+  likes:      0,
+  platform:   "Threads",
+  genre:      "マネタイズ",
+  hook:       "======",
+  hookType:   "数字型",
+  structure:  "主張→根拠→事例",
+  cta:        "保存誘導",
+  score:      33,
+  tips:       "❶〜❼の番号リスト＋→補足で、ツァイガルニク効果により最後まで読ませる構成",
+  投稿の長さ:  "長",
+  画像動画:   "なし"
+},
