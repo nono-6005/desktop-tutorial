@@ -10,7 +10,8 @@
 
 ## 保存先
 - Googleドライブのみ（ローカル保存しない）
-- GAS Web App経由でGoogleドライブに送信する
+- 保存先フォルダID: `1bvfuZow4gYm_EJxf3xZICI8eBWSDQ9-Y`
+- GAS Web App経由でそのフォルダ直下に保存する
 
 ## ファイル名
 - analysis_YYYYMMDD_001.md　（複数枚の場合は連番）
@@ -30,12 +31,12 @@
 # mdファイルを送信
 curl -L -s -X POST "https://script.google.com/macros/s/AKfycbzYhshb-k9cM1AIGnbQy-KG-lwNUt_WbVNh2wJpROSlsueb_yNXRrRhN98vmlIHf1g/exec" \
   -H "Content-Type: application/json" \
-  -d "{\"subfolder\":\"md\",\"filename\":\"<ファイル名>\",\"content\":\"<ファイル内容>\"}"
+  -d "{\"folderId\":\"1bvfuZow4gYm_EJxf3xZICI8eBWSDQ9-Y\",\"filename\":\"<ファイル名>\",\"content\":\"<ファイル内容>\"}"
 
 # jsファイルを送信
 curl -L -s -X POST "https://script.google.com/macros/s/AKfycbzYhshb-k9cM1AIGnbQy-KG-lwNUt_WbVNh2wJpROSlsueb_yNXRrRhN98vmlIHf1g/exec" \
   -H "Content-Type: application/json" \
-  -d "{\"subfolder\":\"js\",\"filename\":\"<ファイル名>\",\"content\":\"<ファイル内容>\"}"
+  -d "{\"folderId\":\"1bvfuZow4gYm_EJxf3xZICI8eBWSDQ9-Y\",\"filename\":\"<ファイル名>\",\"content\":\"<ファイル内容>\"}"
 ```
 
 - contentはファイルの中身をそのまま文字列として渡す（改行は\nにエスケープ）
