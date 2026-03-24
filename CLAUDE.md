@@ -20,6 +20,28 @@
 - 分析完了後に自動で保存する
 - 複数画像の場合は1枚ごとに別ファイルで保存する
 
+## Googleドライブへの自動送信
+ローカル保存完了後、以下のcurlコマンドでGASに送信してGoogleドライブにも保存する。
+
+**GAS URL:** `https://script.google.com/macros/s/AKfycbzYhshb-k9cM1AIGnbQy-KG-lwNUt_WbVNh2wJpROSlsueb_yNXRrRhN98vmlIHf1g/exec`
+
+### 送信コマンド（ファイルごとに実行）
+```bash
+# output/md/ ファイルを送信
+curl -L -s -X POST "https://script.google.com/macros/s/AKfycbzYhshb-k9cM1AIGnbQy-KG-lwNUt_WbVNh2wJpROSlsueb_yNXRrRhN98vmlIHf1g/exec" \
+  -H "Content-Type: application/json" \
+  -d "{\"subfolder\":\"md\",\"filename\":\"<ファイル名>\",\"content\":\"<ファイル内容>\"}"
+
+# output/js/ ファイルを送信
+curl -L -s -X POST "https://script.google.com/macros/s/AKfycbzYhshb-k9cM1AIGnbQy-KG-lwNUt_WbVNh2wJpROSlsueb_yNXRrRhN98vmlIHf1g/exec" \
+  -H "Content-Type: application/json" \
+  -d "{\"subfolder\":\"js\",\"filename\":\"<ファイル名>\",\"content\":\"<ファイル内容>\"}"
+```
+
+- contentはファイルの中身をそのまま文字列として渡す（改行は\nにエスケープ）
+- 送信成功したら「✅ Googleドライブ保存完了」と表示する
+- 送信失敗したら「⚠️ GAS送信失敗（ローカルには保存済み）」と表示する
+
 ---
 
 # 参照する既読本リスト
