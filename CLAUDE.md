@@ -9,38 +9,38 @@
 # ファイル保存ルール
 
 ## 保存先
-- output/md/　　→ NotebookLM用Markdownファイル
-- output/js/　　→ GAS用JSオブジェクトファイル
+- Googleドライブのみ（ローカル保存しない）
+- GAS Web App経由でGoogleドライブに送信する
 
 ## ファイル名
 - analysis_YYYYMMDD_001.md　（複数枚の場合は連番）
 - posts_YYYYMMDD_001.js
 
 ## 保存タイミング
-- 分析完了後に自動で保存する
-- 複数画像の場合は1枚ごとに別ファイルで保存する
+- 分析完了後に自動でGASに送信する
+- 複数画像の場合は1枚ごとに別送信する
 
 ## Googleドライブへの自動送信
-ローカル保存完了後、以下のcurlコマンドでGASに送信してGoogleドライブにも保存する。
+以下のcurlコマンドでGASに送信してGoogleドライブに保存する。
 
 **GAS URL:** `https://script.google.com/macros/s/AKfycbzYhshb-k9cM1AIGnbQy-KG-lwNUt_WbVNh2wJpROSlsueb_yNXRrRhN98vmlIHf1g/exec`
 
 ### 送信コマンド（ファイルごとに実行）
 ```bash
-# output/md/ ファイルを送信
+# mdファイルを送信
 curl -L -s -X POST "https://script.google.com/macros/s/AKfycbzYhshb-k9cM1AIGnbQy-KG-lwNUt_WbVNh2wJpROSlsueb_yNXRrRhN98vmlIHf1g/exec" \
   -H "Content-Type: application/json" \
   -d "{\"subfolder\":\"md\",\"filename\":\"<ファイル名>\",\"content\":\"<ファイル内容>\"}"
 
-# output/js/ ファイルを送信
+# jsファイルを送信
 curl -L -s -X POST "https://script.google.com/macros/s/AKfycbzYhshb-k9cM1AIGnbQy-KG-lwNUt_WbVNh2wJpROSlsueb_yNXRrRhN98vmlIHf1g/exec" \
   -H "Content-Type: application/json" \
   -d "{\"subfolder\":\"js\",\"filename\":\"<ファイル名>\",\"content\":\"<ファイル内容>\"}"
 ```
 
 - contentはファイルの中身をそのまま文字列として渡す（改行は\nにエスケープ）
-- 送信成功したら「✅ Googleドライブ保存完了」と表示する
-- 送信失敗したら「⚠️ GAS送信失敗（ローカルには保存済み）」と表示する
+- 送信成功したら「✅ Googleドライブ保存完了」とファイル名を表示する
+- 送信失敗したら「⚠️ GAS送信失敗」と表示する
 
 ---
 
@@ -90,7 +90,7 @@ curl -L -s -X POST "https://script.google.com/macros/s/AKfycbzYhshb-k9cM1AIGnbQy
 ---
 
 # 【出力①】NotebookLM用 Markdown
-保存先：output/md/analysis_YYYYMMDD_001.md
+保存先：Googleドライブ / sns-analyzer/md/analysis_YYYYMMDD_001.md
 
 ## 投稿分析 No.X
 
@@ -173,7 +173,7 @@ curl -L -s -X POST "https://script.google.com/macros/s/AKfycbzYhshb-k9cM1AIGnbQy
 ---
 
 # 【出力②】GAS用 JSオブジェクト
-保存先：output/js/posts_YYYYMMDD_001.js
+保存先：Googleドライブ / sns-analyzer/js/posts_YYYYMMDD_001.js
 
 説明文・見出し・マークダウン装飾は一切つけない。
 複数画像の場合はカンマ区切りで並べる。
@@ -200,7 +200,7 @@ curl -L -s -X POST "https://script.google.com/macros/s/AKfycbzYhshb-k9cM1AIGnbQy
 
 # 出力ルール
 
-1. 必ず【出力①】→【出力②】の順で両方出力しファイルに保存する
+1. 必ず【出力①】→【出力②】の順で両方出力しGoogleドライブに送信する
 2. 出力①と②は別ファイルに保存する
 3. hook は投稿1行目テキストを完全一致で抜き出す（要約・改変禁止）
 4. readRetain は最低1個・最大5個
@@ -209,7 +209,7 @@ curl -L -s -X POST "https://script.google.com/macros/s/AKfycbzYhshb-k9cM1AIGnbQy
 7. 心理学・行動経済学・脳科学の視点はClaude判断で必要な箇所に自然に組み込む
 8. 既読本フレームワーク照合は全6冊すべてについて記載する
 9. 複数画像の場合は画像ごとにNo.を振って両出力をセットで別ファイルに保存する
-10. 保存完了後に「✅ 保存完了」とファイルパスを表示する
+10. 送信完了後に「✅ Googleドライブ保存完了」とファイル名を表示する
 
 ---
 
