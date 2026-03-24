@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Threads Profile</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      background-color: #101010;
+      color: #f3f5f7;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      display: flex;
+      justify-content: center;
+      min-height: 100vh;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 620px;
+      padding: 0 16px;
+    }
+
+    /* Header */
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 0;
+      border-bottom: 1px solid #1e1e1e;
+    }
+
+    .header-logo {
+      font-size: 24px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+    }
+
+    .header-icon {
+      width: 24px;
+      height: 24px;
+      cursor: pointer;
+    }
+
+    /* Profile Section */
+    .profile-section {
+      padding: 20px 0 16px;
+    }
+
+    .profile-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+
+    .profile-info {
+      flex: 1;
+    }
+
+    .profile-name {
+      font-size: 22px;
+      font-weight: 700;
+      margin-bottom: 4px;
+      letter-spacing: -0.3px;
+    }
+
+    .profile-handle {
+      font-size: 15px;
+      color: #a8a8a8;
+      margin-bottom: 12px;
+    }
+
+    .profile-bio {
+      font-size: 15px;
+      line-height: 1.5;
+      color: #f3f5f7;
+      max-width: 340px;
+    }
+
+    .profile-avatar {
+      width: 84px;
+      height: 84px;
+      border-radius: 50%;
+      overflow: hidden;
+      flex-shrink: 0;
+      background-color: #f5e6d3;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 2.5px solid #2a2a2a;
+    }
+
+    .profile-avatar svg {
+      width: 80px;
+      height: 80px;
+    }
+
+    .profile-stats {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 14px;
+      font-size: 14px;
+      color: #a8a8a8;
+    }
+
+    .profile-stats .dot {
+      width: 3px;
+      height: 3px;
+      background-color: #a8a8a8;
+      border-radius: 50%;
+    }
+
+    .follower-avatars {
+      display: flex;
+    }
+
+    .follower-avatar {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background-color: #444;
+      border: 1.5px solid #101010;
+      margin-right: -6px;
+    }
+
+    .follower-avatar:nth-child(1) { background-color: #c0392b; }
+    .follower-avatar:nth-child(2) { background-color: #8e44ad; }
+    .follower-avatar:nth-child(3) { background-color: #2980b9; }
+
+    .profile-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 4px;
+    }
+
+    .btn {
+      flex: 1;
+      padding: 10px 0;
+      border-radius: 10px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      text-align: center;
+      border: 1px solid #333;
+      background: transparent;
+      color: #f3f5f7;
+      transition: background 0.15s;
+    }
+
+    .btn:hover {
+      background: #1e1e1e;
+    }
+
+    /* Tabs */
+    .tabs {
+      display: flex;
+      border-bottom: 1px solid #2a2a2a;
+      margin-top: 4px;
+    }
+
+    .tab {
+      flex: 1;
+      padding: 14px 0;
+      text-align: center;
+      font-size: 15px;
+      font-weight: 500;
+      color: #a8a8a8;
+      cursor: pointer;
+      border-bottom: 1.5px solid transparent;
+      transition: color 0.15s;
+    }
+
+    .tab.active {
+      color: #f3f5f7;
+      border-bottom-color: #f3f5f7;
+    }
+
+    /* Posts */
+    .post {
+      padding: 16px 0;
+      border-bottom: 1px solid #1e1e1e;
+    }
+
+    .post-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .post-avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background-color: #f5e6d3;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .post-avatar svg {
+      width: 32px;
+      height: 32px;
+    }
+
+    .post-meta {
+      flex: 1;
+    }
+
+    .post-username {
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .post-time {
+      font-size: 13px;
+      color: #a8a8a8;
+    }
+
+    .post-more {
+      color: #a8a8a8;
+      font-size: 20px;
+      cursor: pointer;
+    }
+
+    .post-content {
+      font-size: 15px;
+      line-height: 1.6;
+      padding-left: 46px;
+      margin-bottom: 12px;
+    }
+
+    .post-actions {
+      display: flex;
+      gap: 16px;
+      padding-left: 46px;
+    }
+
+    .action-btn {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 13px;
+      color: #a8a8a8;
+      cursor: pointer;
+      background: none;
+      border: none;
+      padding: 0;
+    }
+
+    .action-btn svg {
+      width: 20px;
+      height: 20px;
+    }
+
+    .action-btn:hover {
+      color: #f3f5f7;
+    }
+
+    /* Dragon SVG colors */
+    .dragon-body { fill: #c0392b; }
+    .circle-bg { fill: #f5e6d3; }
+    .circle-border { fill: none; stroke: #1e2a3a; stroke-width: 5; }
+  </style>
+</head>
+<body>
+  <div class="container">
+
+    <!-- Header -->
+    <div class="header">
+      <div class="header-logo">Threads</div>
+      <svg class="header-icon" viewBox="0 0 24 24" fill="none" stroke="#f3f5f7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="3" y1="6" x2="21" y2="6"/>
+        <line x1="3" y1="12" x2="21" y2="12"/>
+        <line x1="3" y1="18" x2="21" y2="18"/>
+      </svg>
+    </div>
+
+    <!-- Profile Section -->
+    <div class="profile-section">
+      <div class="profile-top">
+        <div class="profile-info">
+          <div class="profile-name">Dragon Guild</div>
+          <div class="profile-handle">@dragon_guild</div>
+          <div class="profile-bio">伝説の竜と共に歩む者たち🐉<br>神話・ファンタジー・アートを愛するコミュニティ</div>
+        </div>
+        <div class="profile-avatar">
+          <!-- Dragon Icon SVG -->
+          <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="100" cy="100" r="95" class="circle-bg"/>
+            <circle cx="100" cy="100" r="95" class="circle-border"/>
+            <!-- Dragon silhouette -->
+            <g class="dragon-body">
+              <!-- Body -->
+              <ellipse cx="100" cy="110" rx="38" ry="32" transform="rotate(-10 100 110)"/>
+              <!-- Neck -->
+              <ellipse cx="75" cy="80" rx="16" ry="22" transform="rotate(-30 75 80)"/>
+              <!-- Head -->
+              <ellipse cx="58" cy="60" rx="18" ry="14" transform="rotate(-15 58 60)"/>
+              <!-- Snout -->
+              <ellipse cx="44" cy="62" rx="12" ry="8" transform="rotate(10 44 62)"/>
+              <!-- Jaw open -->
+              <ellipse cx="46" cy="70" rx="10" ry="5" transform="rotate(20 46 70)"/>
+              <!-- Eye -->
+              <circle cx="56" cy="55" r="4" fill="#f5e6d3"/>
+              <circle cx="57" cy="55" r="2" fill="#1e2a3a"/>
+              <!-- Horn -->
+              <polygon points="62,46 56,30 68,44"/>
+              <!-- Tongue -->
+              <ellipse cx="36" cy="66" rx="5" ry="2.5" transform="rotate(-10 36 66)" fill="#e74c3c"/>
+              <!-- Wing left large -->
+              <path d="M90,85 Q50,40 30,35 Q55,65 70,90 Z"/>
+              <!-- Wing right -->
+              <path d="M115,85 Q155,45 170,42 Q148,70 128,90 Z"/>
+              <!-- Tail -->
+              <path d="M130,125 Q160,140 175,160 Q155,148 138,138 Q148,155 145,170 Q130,150 120,135 Z"/>
+              <!-- Front legs -->
+              <path d="M80,130 Q72,148 68,158 Q74,148 82,148 Q76,158 78,168 Q86,155 88,142 Z"/>
+              <!-- Back leg -->
+              <path d="M118,135 Q122,155 120,168 Q126,155 130,155 Q128,165 132,172 Q138,158 134,142 Z"/>
+              <!-- Claws front -->
+              <path d="M64,158 Q60,164 56,162 M68,160 Q66,166 62,166 M72,160 Q71,167 67,168"/>
+              <!-- Claws back -->
+              <path d="M118,168 Q115,174 111,172 M122,170 Q120,176 116,176 M126,169 Q125,175 121,176"/>
+              <!-- Chest scales highlight -->
+              <ellipse cx="95" cy="115" rx="12" ry="16" fill="#a93226" opacity="0.5"/>
+              <!-- Wing membrane details -->
+              <path d="M100,88 Q75,65 55,50" stroke="#a93226" stroke-width="1.5" fill="none" opacity="0.6"/>
+              <path d="M105,86 Q125,62 148,52" stroke="#a93226" stroke-width="1.5" fill="none" opacity="0.6"/>
+            </g>
+          </svg>
+        </div>
+      </div>
+
+      <div class="profile-stats">
+        <div class="follower-avatars">
+          <div class="follower-avatar"></div>
+          <div class="follower-avatar"></div>
+          <div class="follower-avatar"></div>
+        </div>
+        <span>フォロワー 2,481人</span>
+      </div>
+
+      <div class="profile-actions">
+        <button class="btn">フォローする</button>
+        <button class="btn">メンション</button>
+      </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tabs">
+      <div class="tab active">スレッド</div>
+      <div class="tab">返信</div>
+      <div class="tab">再投稿</div>
+    </div>
+
+    <!-- Posts -->
+    <div class="post">
+      <div class="post-header">
+        <div class="post-avatar">
+          <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="100" cy="100" r="95" fill="#f5e6d3"/>
+            <g fill="#c0392b">
+              <ellipse cx="100" cy="110" rx="38" ry="32" transform="rotate(-10 100 110)"/>
+              <ellipse cx="75" cy="80" rx="16" ry="22" transform="rotate(-30 75 80)"/>
+              <ellipse cx="58" cy="60" rx="18" ry="14" transform="rotate(-15 58 60)"/>
+              <ellipse cx="44" cy="62" rx="12" ry="8" transform="rotate(10 44 62)"/>
+              <polygon points="62,46 56,30 68,44"/>
+              <path d="M90,85 Q50,40 30,35 Q55,65 70,90 Z"/>
+              <path d="M115,85 Q155,45 170,42 Q148,70 128,90 Z"/>
+              <path d="M130,125 Q160,140 175,160 Q155,148 138,138 Q148,155 145,170 Q130,150 120,135 Z"/>
+            </g>
+          </svg>
+        </div>
+        <div class="post-meta">
+          <div class="post-username">dragon_guild</div>
+          <div class="post-time">2時間前</div>
+        </div>
+        <div class="post-more">···</div>
+      </div>
+      <div class="post-content">
+        竜は炎を吐くだけではない。知恵と力と誇りを持つ存在——それが真の龍だ🔥
+      </div>
+      <div class="post-actions">
+        <button class="action-btn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+          <span>148</span>
+        </button>
+        <button class="action-btn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          <span>32</span>
+        </button>
+        <button class="action-btn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+          <span>12</span>
+        </button>
+        <button class="action-btn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+          <span></span>
+        </button>
+      </div>
+    </div>
+
+    <div class="post">
+      <div class="post-header">
+        <div class="post-avatar">
+          <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="100" cy="100" r="95" fill="#f5e6d3"/>
+            <g fill="#c0392b">
+              <ellipse cx="100" cy="110" rx="38" ry="32" transform="rotate(-10 100 110)"/>
+              <ellipse cx="75" cy="80" rx="16" ry="22" transform="rotate(-30 75 80)"/>
+              <ellipse cx="58" cy="60" rx="18" ry="14" transform="rotate(-15 58 60)"/>
+              <ellipse cx="44" cy="62" rx="12" ry="8" transform="rotate(10 44 62)"/>
+              <polygon points="62,46 56,30 68,44"/>
+              <path d="M90,85 Q50,40 30,35 Q55,65 70,90 Z"/>
+              <path d="M115,85 Q155,45 170,42 Q148,70 128,90 Z"/>
+              <path d="M130,125 Q160,140 175,160 Q155,148 138,138 Q148,155 145,170 Q130,150 120,135 Z"/>
+            </g>
+          </svg>
+        </div>
+        <div class="post-meta">
+          <div class="post-username">dragon_guild</div>
+          <div class="post-time">1日前</div>
+        </div>
+        <div class="post-more">···</div>
+      </div>
+      <div class="post-content">
+        【新作アート公開】仲間のアーティストが描いてくれた炎竜。圧巻のクオリティ✨ みんなも見てみて！
+      </div>
+      <div class="post-actions">
+        <button class="action-btn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+          <span>304</span>
+        </button>
+        <button class="action-btn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          <span>67</span>
+        </button>
+        <button class="action-btn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+          <span>28</span>
+        </button>
+        <button class="action-btn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+          <span></span>
+        </button>
+      </div>
+    </div>
+
+    <div class="post">
+      <div class="post-header">
+        <div class="post-avatar">
+          <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="100" cy="100" r="95" fill="#f5e6d3"/>
+            <g fill="#c0392b">
+              <ellipse cx="100" cy="110" rx="38" ry="32" transform="rotate(-10 100 110)"/>
+              <ellipse cx="75" cy="80" rx="16" ry="22" transform="rotate(-30 75 80)"/>
+              <ellipse cx="58" cy="60" rx="18" ry="14" transform="rotate(-15 58 60)"/>
+              <ellipse cx="44" cy="62" rx="12" ry="8" transform="rotate(10 44 62)"/>
+              <polygon points="62,46 56,30 68,44"/>
+              <path d="M90,85 Q50,40 30,35 Q55,65 70,90 Z"/>
+              <path d="M115,85 Q155,45 170,42 Q148,70 128,90 Z"/>
+              <path d="M130,125 Q160,140 175,160 Q155,148 138,138 Q148,155 145,170 Q130,150 120,135 Z"/>
+            </g>
+          </svg>
+        </div>
+        <div class="post-meta">
+          <div class="post-username">dragon_guild</div>
+          <div class="post-time">3日前</div>
+        </div>
+        <div class="post-more">···</div>
+      </div>
+      <div class="post-content">
+        あなたが一番好きな竜の種類は？<br><br>🔴 炎竜<br>🔵 氷竜<br>⚡ 雷竜<br>🌑 影竜
+      </div>
+      <div class="post-actions">
+        <button class="action-btn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+          <span>512</span>
+        </button>
+        <button class="action-btn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          <span>201</span>
+        </button>
+        <button class="action-btn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+          <span>89</span>
+        </button>
+        <button class="action-btn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+          <span></span>
+        </button>
+      </div>
+    </div>
+
+  </div>
+</body>
+</html>
