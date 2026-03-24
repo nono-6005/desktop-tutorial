@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Discord メッセージ要約</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #313338;
+      color: #dbdee1;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px 16px;
+    }
+
+    h1 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      margin-bottom: 8px;
+      color: #fff;
+    }
+
+    .subtitle {
+      font-size: 0.875rem;
+      color: #949ba4;
+      margin-bottom: 32px;
+    }
+
+    .card {
+      background: #2b2d31;
+      border-radius: 12px;
+      padding: 24px;
+      width: 100%;
+      max-width: 720px;
+      margin-bottom: 16px;
+    }
+
+    label {
+      display: block;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #b5bac1;
+      margin-bottom: 8px;
+    }
+
+    textarea {
+      width: 100%;
+      height: 240px;
+      background: #1e1f22;
+      border: 1px solid #1e1f22;
+      border-radius: 8px;
+      color: #dbdee1;
+      font-size: 0.9rem;
+      padding: 12px;
+      resize: vertical;
+      outline: none;
+      transition: border-color 0.15s;
+      font-family: inherit;
+      line-height: 1.5;
+    }
+
+    textarea:focus {
+      border-color: #5865f2;
+    }
+
+    textarea::placeholder { color: #4e5058; }
+
+    .controls {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-top: 16px;
+      flex-wrap: wrap;
+    }
+
+    .control-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.875rem;
+      color: #b5bac1;
+    }
+
+    select {
+      background: #1e1f22;
+      border: 1px solid #1e1f22;
+      border-radius: 6px;
+      color: #dbdee1;
+      padding: 6px 10px;
+      font-size: 0.875rem;
+      outline: none;
+      cursor: pointer;
+    }
+
+    button {
+      margin-left: auto;
+      background: #5865f2;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 10px 28px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s, opacity 0.15s;
+    }
+
+    button:hover { background: #4752c4; }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .result-card {
+      background: #2b2d31;
+      border-radius: 12px;
+      padding: 24px;
+      width: 100%;
+      max-width: 720px;
+      display: none;
+    }
+
+    .result-card.visible { display: block; }
+
+    .result-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+
+    .result-header label { margin: 0; }
+
+    .badge {
+      font-size: 0.75rem;
+      background: #5865f220;
+      color: #7289da;
+      border-radius: 4px;
+      padding: 2px 8px;
+    }
+
+    .summary-text {
+      background: #1e1f22;
+      border-radius: 8px;
+      padding: 16px;
+      font-size: 0.9rem;
+      line-height: 1.7;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .copy-btn {
+      margin: 0;
+      background: #4e5058;
+      font-size: 0.8rem;
+      padding: 6px 16px;
+      border-radius: 6px;
+    }
+
+    .copy-btn:hover { background: #6d6f78; }
+
+    .error {
+      color: #f38ba8;
+      font-size: 0.875rem;
+      margin-top: 8px;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Discord メッセージ要約</h1>
+  <p class="subtitle">チャンネルのメッセージをコピペして「要約」を押すだけ</p>
+
+  <div class="card">
+    <label for="input">メッセージを貼り付け</label>
+    <textarea
+      id="input"
+      placeholder="例)&#10;Alice: 明日の会議は何時からですか？&#10;Bob: 14時からです。Zoom でやります&#10;Alice: わかりました。資料は事前に共有しますか？&#10;Bob: はい、午前中に送ります"
+    ></textarea>
+    <p class="error" id="error"></p>
+
+    <div class="controls">
+      <div class="control-group">
+        <span>要約の長さ:</span>
+        <select id="length">
+          <option value="short">短め</option>
+          <option value="medium" selected>普通</option>
+          <option value="long">詳しく</option>
+        </select>
+      </div>
+      <button id="btn" onclick="run()">要約する</button>
+    </div>
+  </div>
+
+  <div class="result-card" id="result">
+    <div class="result-header">
+      <label>要約結果</label>
+      <div style="display:flex;gap:8px;align-items:center">
+        <span class="badge" id="badge"></span>
+        <button class="copy-btn" onclick="copy()">コピー</button>
+      </div>
+    </div>
+    <div class="summary-text" id="summary"></div>
+  </div>
+
+  <script>
+    function run() {
+      const raw = document.getElementById('input').value.trim();
+      const errEl = document.getElementById('error');
+      errEl.style.display = 'none';
+
+      if (!raw) {
+        errEl.textContent = 'メッセージを入力してください。';
+        errEl.style.display = 'block';
+        return;
+      }
+
+      const btn = document.getElementById('btn');
+      btn.disabled = true;
+      btn.textContent = '要約中...';
+
+      setTimeout(() => {
+        try {
+          const length = document.getElementById('length').value;
+          const result = summarize(raw, length);
+          document.getElementById('summary').textContent = result.text;
+          document.getElementById('badge').textContent = `${result.msgCount} 件のメッセージ`;
+          document.getElementById('result').classList.add('visible');
+        } catch (e) {
+          errEl.textContent = 'エラー: ' + e.message;
+          errEl.style.display = 'block';
+        } finally {
+          btn.disabled = false;
+          btn.textContent = '要約する';
+        }
+      }, 50);
+    }
+
+    function copy() {
+      const text = document.getElementById('summary').textContent;
+      navigator.clipboard.writeText(text).then(() => {
+        const btn = document.querySelector('.copy-btn');
+        btn.textContent = 'コピーしました！';
+        setTimeout(() => btn.textContent = 'コピー', 1500);
+      });
+    }
+
+    // ---- 要約ロジック ----
+
+    function summarize(raw, length) {
+      const lines = raw.split('\n').map(l => l.trim()).filter(Boolean);
+      const messages = lines.map(parseLine).filter(m => m.content.length > 1);
+
+      if (messages.length === 0) throw new Error('解析できるメッセージが見つかりませんでした。');
+
+      // トピックを抽出して箇条書き要約を作成
+      const sentences = extractSentences(messages);
+      const scored = scoreSentences(sentences, messages);
+
+      const topN = length === 'short' ? 3 : length === 'long' ? 7 : 5;
+      const top = scored.slice(0, topN);
+
+      const speakers = [...new Set(messages.map(m => m.author))].filter(Boolean);
+      const speakerText = speakers.length > 0 ? `参加者: ${speakers.join('、')}` : '';
+
+      const bullets = top.map(s => '・' + s.text).join('\n');
+      const summary = [speakerText, '', '【要点】', bullets].filter(l => l !== undefined).join('\n').trim();
+
+      return { text: summary, msgCount: messages.length };
+    }
+
+    function parseLine(line) {
+      // 「名前: 内容」または「[時刻] 名前: 内容」などに対応
+      const m = line.match(/^(?:\[.*?\]\s*)?([^:：]+)[：:](.+)$/);
+      if (m) return { author: m[1].trim(), content: m[2].trim() };
+      return { author: '', content: line };
+    }
+
+    function extractSentences(messages) {
+      const sentences = [];
+      for (const msg of messages) {
+        // 句点・。！？で分割
+        const parts = msg.content.split(/(?<=[。！？!?])/).map(s => s.trim()).filter(s => s.length > 3);
+        if (parts.length > 0) {
+          parts.forEach(p => sentences.push({ text: p, author: msg.author }));
+        } else if (msg.content.length > 3) {
+          sentences.push({ text: msg.content, author: msg.author });
+        }
+      }
+      return sentences;
+    }
+
+    function scoreSentences(sentences, messages) {
+      // 全テキスト結合
+      const allText = messages.map(m => m.content).join(' ');
+      const wordFreq = buildWordFreq(allText);
+
+      const scored = sentences.map(s => {
+        const words = tokenize(s.text);
+        const score = words.reduce((sum, w) => sum + (wordFreq[w] || 0), 0) / (words.length || 1);
+        return { ...s, score };
+      });
+
+      // スコア降順 + 重複除去
+      scored.sort((a, b) => b.score - a.score);
+      const seen = new Set();
+      return scored.filter(s => {
+        const key = s.text.slice(0, 20);
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+    }
+
+    function buildWordFreq(text) {
+      const freq = {};
+      const words = tokenize(text);
+      // ストップワード
+      const stop = new Set(['です','ます','した','ます','けど','から','ので','って','という','いう','ある','いる','する','なる','れる','られる','こと','もの','ため','それ','これ','あれ','は','が','を','に','で','と','も','の','な','て','へ','や']);
+      for (const w of words) {
+        if (w.length < 2 || stop.has(w)) continue;
+        freq[w] = (freq[w] || 0) + 1;
+      }
+      return freq;
+    }
+
+    function tokenize(text) {
+      // 簡易的に2文字以上のひらがな・カタカナ・漢字・英数字の連続を単語とみなす
+      return (text.match(/[\u3040-\u9FFF\w]{2,}/g) || []).map(w => w.toLowerCase());
+    }
+  </script>
+</body>
+</html>
