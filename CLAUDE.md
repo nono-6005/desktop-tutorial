@@ -28,17 +28,17 @@
 ## Googleドライブへの自動送信
 以下のcurlコマンドでGASに送信してGoogleドライブに保存する。
 
-**GAS URL:** `https://script.google.com/macros/s/AKfycbzYhshb-k9cM1AIGnbQy-KG-lwNUt_WbVNh2wJpROSlsueb_yNXRrRhN98vmlIHf1g/exec`
+**GAS URL:** `https://script.google.com/macros/s/AKfycbzQaVFFG-xS-axtsOel1vv8HwbvBztLjcRmJsMnWJdqaiXM3tSYdA4siPzY_UyFWF-i/exec`
 
 ### 送信コマンド（ファイルごとに実行）
 ```bash
 # mdファイルを送信
-curl -L -s -X POST "https://script.google.com/macros/s/AKfycbzYhshb-k9cM1AIGnbQy-KG-lwNUt_WbVNh2wJpROSlsueb_yNXRrRhN98vmlIHf1g/exec" \
+curl -L -s -X POST "https://script.google.com/macros/s/AKfycbzQaVFFG-xS-axtsOel1vv8HwbvBztLjcRmJsMnWJdqaiXM3tSYdA4siPzY_UyFWF-i/exec" \
   -H "Content-Type: application/json" \
   -d "{\"folderId\":\"1bvfuZow4gYm_EJxf3xZICI8eBWSDQ9-Y\",\"filename\":\"<ファイル名>\",\"content\":\"<ファイル内容>\"}"
 
 # jsファイルを送信
-curl -L -s -X POST "https://script.google.com/macros/s/AKfycbzYhshb-k9cM1AIGnbQy-KG-lwNUt_WbVNh2wJpROSlsueb_yNXRrRhN98vmlIHf1g/exec" \
+curl -L -s -X POST "https://script.google.com/macros/s/AKfycbzQaVFFG-xS-axtsOel1vv8HwbvBztLjcRmJsMnWJdqaiXM3tSYdA4siPzY_UyFWF-i/exec" \
   -H "Content-Type: application/json" \
   -d "{\"folderId\":\"1bvfuZow4gYm_EJxf3xZICI8eBWSDQ9-Y\",\"filename\":\"<ファイル名>\",\"content\":\"<ファイル内容>\"}"
 ```
