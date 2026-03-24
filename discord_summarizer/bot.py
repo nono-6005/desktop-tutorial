@@ -1,83 +1,103 @@
-import os
+import logging
 import discord
 from discord.ext import commands
 from discord import app_commands
-from summarizer import summarize_messages
+from .config import Config
+from .summarizer import Summarizer
 
-intents = discord.Intents.default()
-intents.message_content = True
-
-bot = commands.Bot(command_prefix="!", intents=intents)
+logger = logging.getLogger(__name__)
 
 
-@bot.event
-async def on_ready():
-    print(f"ログイン成功: {bot.user} (ID: {bot.user.id})")
-    try:
-        synced = await bot.tree.sync()
-        print(f"スラッシュコマンドを {len(synced)} 件同期しました")
-    except Exception as e:
-        print(f"コマンド同期エラー: {e}")
+def create_bot(config: Config) -> commands.Bot:
+    intents = discord.Intents.default()
+    intents.message_content = True
+
+    bot = commands.Bot(command_prefix=config.command_prefix, intents=intents)
+    summarizer = Summarizer(config)
+
+    @bot.event
+    async def on_ready():
+        logger.info(f"ログイン成功: {bot.user} (ID: {bot.user.id})")
+        try:
+            synced = await bot.tree.sync()
+            logger.info(f"スラッシュコマンドを {len(synced)} 件同期しました")
+        except Exception as e:
+            logger.error(f"コマンド同期エラー: {e}")
+
+    @bot.event
+    async def on_command_error(ctx: commands.Context, error: commands.CommandError):
+        if isinstance(error, commands.BadArgument):
+            await ctx.reply("引数が正しくありません。数値を指定してください。例: `!summarize 100`")
+        else:
+            logger.error(f"コマンドエラー: {error}")
+            await ctx.reply(f"エラーが発生しました: {error}")
+
+    # --- スラッシュコマンド ---
+
+    @bot.tree.command(name="summarize", description="このチャンネルの最近のメッセージを要約します")
+    @app_commands.describe(count=f"要約するメッセージ数（デフォルト: {config.default_message_count}、最大: {config.max_message_count}）")
+    async def slash_summarize(interaction: discord.Interaction, count: int = config.default_message_count):
+        count = min(max(count, 1), config.max_message_count)
+        await interaction.response.defer(thinking=True)
+
+        try:
+            messages = await _fetch_messages(interaction.channel, count)
+            if not messages:
+                await interaction.followup.send("要約できるメッセージが見つかりませんでした。")
+                return
+
+            summary = await summarizer.summarize(messages)
+            embed = _build_embed(len(messages), summary, interaction.channel.name)
+            await interaction.followup.send(embed=embed)
+        except Exception as e:
+            logger.error(f"要約エラー: {e}")
+            await interaction.followup.send(f"要約中にエラーが発生しました: {e}")
+
+    # --- プレフィックスコマンド ---
+
+    @bot.command(name="summarize", help="チャンネルのメッセージを要約します。使い方: !summarize [件数]")
+    async def prefix_summarize(ctx: commands.Context, count: int = config.default_message_count):
+        count = min(max(count, 1), config.max_message_count)
+        async with ctx.typing():
+            try:
+                messages = await _fetch_messages(ctx.channel, count, exclude_id=ctx.message.id)
+                if not messages:
+                    await ctx.reply("要約できるメッセージが見つかりませんでした。")
+                    return
+
+                summary = await summarizer.summarize(messages)
+                embed = _build_embed(len(messages), summary, ctx.channel.name)
+                await ctx.reply(embed=embed)
+            except Exception as e:
+                logger.error(f"要約エラー: {e}")
+                await ctx.reply(f"要約中にエラーが発生しました: {e}")
+
+    return bot
 
 
-@bot.tree.command(name="summarize", description="このチャンネルの最近のメッセージを要約します")
-@app_commands.describe(count="要約するメッセージ数（デフォルト: 50、最大: 200）")
-async def summarize(interaction: discord.Interaction, count: int = 50):
-    """チャンネルの最近のメッセージを要約するスラッシュコマンド"""
-    count = min(max(count, 1), 200)
-    await interaction.response.defer(thinking=True)
-
+async def _fetch_messages(
+    channel: discord.abc.Messageable,
+    count: int,
+    exclude_id: int | None = None,
+) -> list[dict]:
+    """チャンネルからボット以外のメッセージを取得して時系列順で返す。"""
     messages = []
-    async for msg in interaction.channel.history(limit=count):
-        if not msg.author.bot:
+    async for msg in channel.history(limit=count + (1 if exclude_id else 0)):
+        if msg.author.bot:
+            continue
+        if exclude_id and msg.id == exclude_id:
+            continue
+        if msg.content.strip():
             messages.append({"author": msg.author.display_name, "content": msg.content})
-
     messages.reverse()
+    return messages
 
-    if not messages:
-        await interaction.followup.send("要約できるメッセージが見つかりませんでした。")
-        return
 
-    summary = await summarize_messages(messages)
-
+def _build_embed(count: int, summary: str, channel_name: str) -> discord.Embed:
     embed = discord.Embed(
-        title=f"直近 {len(messages)} 件のメッセージの要約",
+        title=f"直近 {count} 件のメッセージの要約",
         description=summary,
         color=discord.Color.blurple(),
     )
-    embed.set_footer(text=f"チャンネル: #{interaction.channel.name}")
-    await interaction.followup.send(embed=embed)
-
-
-@bot.command(name="summarize")
-async def summarize_prefix(ctx: commands.Context, count: int = 50):
-    """!summarize コマンドで要約（プレフィックスコマンド）"""
-    count = min(max(count, 1), 200)
-    async with ctx.typing():
-        messages = []
-        async for msg in ctx.channel.history(limit=count + 1):
-            if not msg.author.bot and msg.id != ctx.message.id:
-                messages.append({"author": msg.author.display_name, "content": msg.content})
-
-        messages.reverse()
-
-        if not messages:
-            await ctx.reply("要約できるメッセージが見つかりませんでした。")
-            return
-
-        summary = await summarize_messages(messages)
-
-        embed = discord.Embed(
-            title=f"直近 {len(messages)} 件のメッセージの要約",
-            description=summary,
-            color=discord.Color.blurple(),
-        )
-        embed.set_footer(text=f"チャンネル: #{ctx.channel.name}")
-        await ctx.reply(embed=embed)
-
-
-if __name__ == "__main__":
-    token = os.getenv("DISCORD_BOT_TOKEN")
-    if not token:
-        raise ValueError("環境変数 DISCORD_BOT_TOKEN が設定されていません")
-    bot.run(token)
+    embed.set_footer(text=f"チャンネル: #{channel_name}")
+    return embed

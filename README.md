@@ -1,51 +1,67 @@
 # Discord メッセージ要約ボット
 
-Discord チャンネルの最近のメッセージを Claude AI を使って自動要約するボットです。
+Discord チャンネルの最近のメッセージを **Claude AI** を使って自動要約するボットです。
 
 ## 機能
 
-- `/summarize [count]` スラッシュコマンドでチャンネルの直近メッセージを要約
-- `!summarize [count]` プレフィックスコマンドにも対応
-- 要約件数を指定可能（デフォルト: 50件、最大: 200件）
-- ボットのメッセージは除外して要約
+- `/summarize [count]` — スラッシュコマンドで要約
+- `!summarize [count]` — プレフィックスコマンドで要約
+- 件数指定可能（デフォルト: 50件、最大: 200件）
+- ボットのメッセージを自動除外
 - Embed 形式で見やすく出力
+- Docker で簡単に起動
 
 ## セットアップ
 
-### 1. 依存パッケージをインストール
+### 1. リポジトリをクローン
 
 ```bash
-pip install -r requirements.txt
+git clone <repo-url>
+cd desktop-tutorial
 ```
 
 ### 2. 環境変数を設定
-
-`.env.example` をコピーして `.env` を作成し、各値を設定します。
 
 ```bash
 cp .env.example .env
 ```
 
-`.env` を編集:
+`.env` を編集して以下の値を設定します：
 
 ```
 DISCORD_BOT_TOKEN=your_discord_bot_token_here
 ANTHROPIC_API_KEY=your_anthropic_api_key_here
 ```
 
-### 3. Discord Developer Portal での設定
+#### 各キーの取得方法
 
-1. [Discord Developer Portal](https://discord.com/developers/applications) でアプリケーションを作成
-2. **Bot** ページでトークンを取得
+**DISCORD_BOT_TOKEN**
+1. [Discord Developer Portal](https://discord.com/developers/applications) でアプリを作成
+2. **Bot** ページでトークンをコピー
 3. **Privileged Gateway Intents** の `MESSAGE CONTENT INTENT` を有効化
-4. **OAuth2 > URL Generator** でスコープ `bot` と `applications.commands` を選択し、ボットをサーバーに招待
+4. **OAuth2 → URL Generator** でスコープ `bot` + `applications.commands` を選択してサーバーに招待
 
-### 4. ボットを起動
+**ANTHROPIC_API_KEY**
+1. [Anthropic Console](https://console.anthropic.com) でAPIキーを作成
+
+---
+
+## 起動方法
+
+### Docker（推奨）
 
 ```bash
-cd discord_summarizer
-python bot.py
+docker compose up -d
 ```
+
+### Python 直接実行
+
+```bash
+pip install -r requirements.txt
+python main.py
+```
+
+---
 
 ## 使い方
 
@@ -53,15 +69,21 @@ python bot.py
 |---|---|
 | `/summarize` | 直近50件のメッセージを要約 |
 | `/summarize 100` | 直近100件のメッセージを要約 |
-| `!summarize` | 直近50件のメッセージを要約（プレフィックス） |
-| `!summarize 100` | 直近100件のメッセージを要約（プレフィックス） |
+| `!summarize` | 直近50件を要約（プレフィックス） |
+| `!summarize 100` | 直近100件を要約（プレフィックス） |
 
 ## ファイル構成
 
 ```
-discord_summarizer/
-├── bot.py          # Discord ボット本体
-└── summarizer.py   # Claude API による要約処理
-requirements.txt    # 依存パッケージ
-.env.example        # 環境変数サンプル
+.
+├── main.py                        # エントリーポイント
+├── discord_summarizer/
+│   ├── __init__.py
+│   ├── config.py                  # 設定管理
+│   ├── bot.py                     # Discord ボット本体
+│   └── summarizer.py              # Claude API による要約処理
+├── requirements.txt
+├── Dockerfile
+├── docker-compose.yml
+└── .env.example
 ```
