@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="メモ">
+  <meta name="theme-color" content="#d97757">
+  <meta name="description" content="Markdown対応のローカルメモアプリ">
+  <link rel="manifest" href="./manifest.json">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect fill='%23d97757' width='192' height='192'/><text x='50%' y='50%' font-size='120' font-weight='bold' fill='white' text-anchor='middle' dominant-baseline='middle' font-family='system-ui'>メ</text></svg>">
+  <title>メモ</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', sans-serif;
+      background: linear-gradient(180deg, #0f0f0f 0%, #1a1a1a 50%, #0f0f0f 100%);
+      color: #d4d4d4;
+      overflow: hidden;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+
+    input, textarea {
+      -webkit-user-select: text;
+      user-select: text;
+    }
+
+    body.no-scroll {
+      overflow: hidden;
+    }
+
+    #app {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      background: linear-gradient(180deg, #0f0f0f 0%, #1a1a1a 50%, #0f0f0f 100%);
+    }
+
+    /* ===== ヘッダー ===== */
+    .header {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: #0f0f0f;
+      border-bottom: 1px solid rgba(180, 120, 60, 0.2);
+      padding: 1rem;
+      flex-shrink: 0;
+    }
+
+    .header-list {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+    }
+
+    .header h1 {
+      font-size: 1.5rem;
+      font-weight: 300;
+      letter-spacing: 0.05em;
+      color: #f5e6d3;
+    }
+
+    .header-count {
+      font-size: 0.75rem;
+      color: #666;
+      margin-top: 0.25rem;
+    }
+
+    .header-edit {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .header-edit button {
+      background: none;
+      border: none;
+      color: #f5e6d3;
+      cursor: pointer;
+      font-size: 0.95rem;
+      padding: 0.5rem;
+      transition: color 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+
+    .header-edit button:active {
+      color: #e0d0b8;
+    }
+
+    .header-edit .delete-btn {
+      color: #888;
+    }
+
+    .header-edit .delete-btn:active {
+      color: #e74c3c;
+    }
+
+    /* ===== メインコンテンツ ===== */
+    .content {
+      flex: 1;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      padding-bottom: 1rem;
+    }
+
+    .content::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    .content::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .content::-webkit-scrollbar-thumb {
+      background: rgba(180, 120, 60, 0.3);
+      border-radius: 2px;
+    }
+
+    /* リスト表示 */
+    .memo-list {
+      list-style: none;
+    }
+
+    .memo-item {
+      padding: 1rem;
+      border-left: 2px solid transparent;
+      border-bottom: 1px solid #222;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+
+    .memo-item:active {
+      background: rgba(100, 60, 20, 0.3);
+      border-left-color: #b4783c;
+    }
+
+    .memo-item:hover {
+      border-left-color: #b4783c;
+      background: rgba(100, 60, 20, 0.15);
+    }
+
+    .memo-title {
+      font-size: 1rem;
+      font-weight: 500;
+      color: #f5e6d3;
+      margin-bottom: 0.25rem;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .memo-preview {
+      font-size: 0.85rem;
+      color: #888;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      margin-bottom: 0.5rem;
+      min-height: 1.4em;
+    }
+
+    .memo-date {
+      font-size: 0.75rem;
+      color: #555;
+      text-align: right;
+    }
+
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 60vh;
+      gap: 1rem;
+      color: #666;
+    }
+
+    .empty-state p:first-child {
+      font-size: 0.95rem;
+    }
+
+    .empty-state p:last-child {
+      font-size: 0.8rem;
+      color: #555;
+    }
+
+    /* エディタ表示 */
+    .editor-container {
+      display: none;
+      flex-direction: column;
+      height: 100%;
+    }
+
+    .editor-container.active {
+      display: flex;
+    }
+
+    .title-input {
+      padding: 1rem;
+      background: transparent;
+      border: none;
+      border-bottom: 1px solid #333;
+      font-size: 1.25rem;
+      font-weight: 500;
+      color: #f5e6d3;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .title-input:focus {
+      border-bottom-color: #b4783c;
+    }
+
+    .title-input::placeholder {
+      color: #555;
+    }
+
+    .content-input {
+      flex: 1;
+      padding: 1rem;
+      background: transparent;
+      border: none;
+      color: #d4d4d4;
+      outline: none;
+      font-family: 'Courier New', monospace;
+      font-size: 0.95rem;
+      line-height: 1.5;
+      resize: none;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .content-input::placeholder {
+      color: #555;
+    }
+
+    .editor-meta {
+      padding: 0 1rem 1rem;
+      font-size: 0.75rem;
+      color: #555;
+    }
+
+    /* ===== FAB（新規作成ボタン） ===== */
+    .fab {
+      position: fixed;
+      bottom: 1.5rem;
+      right: 1.5rem;
+      z-index: 50;
+      width: 3.5rem;
+      height: 3.5rem;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #d97757 0%, #b4783c 100%);
+      border: none;
+      color: white;
+      font-size: 1.5rem;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s ease;
+      font-weight: bold;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+
+    .fab:active {
+      transform: scale(0.95);
+    }
+
+    .fab.hidden {
+      display: none;
+    }
+
+    /* ===== ビュー切り替え ===== */
+    .list-view {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+    }
+
+    .list-view.hidden {
+      display: none;
+    }
+
+    /* iOS safe area 対応 */
+    @supports (padding: max(0px)) {
+      .header {
+        padding-top: max(1rem, env(safe-area-inset-top));
+        padding-left: max(1rem, env(safe-area-inset-left));
+        padding-right: max(1rem, env(safe-area-inset-right));
+      }
+
+      .fab {
+        bottom: max(1.5rem, calc(1.5rem + env(safe-area-inset-bottom)));
+        right: max(1.5rem, calc(1.5rem + env(safe-area-inset-right)));
+      }
+
+      .content {
+        padding-bottom: max(1rem, env(safe-area-inset-bottom));
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <!-- リスト表示 -->
+    <div class="list-view" id="listView">
+      <div class="header">
+        <div class="header-list">
+          <div>
+            <h1>メモ</h1>
+            <p class="header-count" id="memoCount">0 件</p>
+          </div>
+        </div>
+      </div>
+      <div class="content">
+        <ul class="memo-list" id="memoList"></ul>
+        <div class="empty-state" id="emptyState">
+          <p>メモはまだありません</p>
+          <p>新規作成ボタンから始める</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- エディタ表示 -->
+    <div class="header" id="editorHeader" style="display: none;">
+      <div class="header-edit">
+        <button id="saveBtn">← 保存</button>
+        <button class="delete-btn" id="deleteBtn">🗑</button>
+      </div>
+    </div>
+    <div class="editor-container" id="editorContainer">
+      <input type="text" class="title-input" id="titleInput" placeholder="タイトル">
+      <textarea class="content-input" id="contentInput" placeholder="Markdown で記述..."></textarea>
+      <div class="editor-meta" id="editorMeta"></div>
+    </div>
+
+    <!-- 新規作成ボタン -->
+    <button class="fab" id="fabBtn">+</button>
+  </div>
+
+  <script>
+    // ===== PWA インストール =====
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('./sw.js').catch(() => {
+        console.log('Service Worker registration failed');
+      });
+    }
+
+    // install プロンプト処理
+    let deferredPrompt;
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+      // 必要に応じてインストールボタンを表示
+    });
+
+    // ===== IndexedDB 管理 =====
+    let db = null;
+
+    function initDB() {
+      return new Promise((resolve, reject) => {
+        const request = indexedDB.open('MemoApp', 1);
+
+        request.onerror = () => reject(request.error);
+        request.onsuccess = () => {
+          db = request.result;
+          resolve(db);
+        };
+
+        request.onupgradeneeded = (e) => {
+          const database = e.target.result;
+          if (!database.objectStoreNames.contains('memos')) {
+            database.createObjectStore('memos', { keyPath: 'id' });
+          }
+        };
+      });
+    }
+
+    function getAllMemos() {
+      return new Promise((resolve, reject) => {
+        const transaction = db.transaction(['memos'], 'readonly');
+        const store = transaction.objectStore('memos');
+        const request = store.getAll();
+
+        request.onerror = () => reject(request.error);
+        request.onsuccess = () => {
+          const sorted = request.result.sort((a, b) => b.updatedAt - a.updatedAt);
+          resolve(sorted);
+        };
+      });
+    }
+
+    function saveMemo(memo) {
+      return new Promise((resolve, reject) => {
+        const transaction = db.transaction(['memos'], 'readwrite');
+        const store = transaction.objectStore('memos');
+        const request = store.put(memo);
+
+        request.onerror = () => reject(request.error);
+        request.onsuccess = () => resolve(request.result);
+      });
+    }
+
+    function deleteMemo(id) {
+      return new Promise((resolve, reject) => {
+        const transaction = db.transaction(['memos'], 'readwrite');
+        const store = transaction.objectStore('memos');
+        const request = store.delete(id);
+
+        request.onerror = () => reject(request.error);
+        request.onsuccess = () => resolve();
+      });
+    }
+
+    // ===== UI 管理 =====
+    let currentMemo = null;
+
+    function formatDate(timestamp) {
+      const date = new Date(timestamp);
+      const today = new Date();
+      const yesterday = new Date(today);
+      yesterday.setDate(yesterday.getDate() - 1);
+
+      if (date.toDateString() === today.toDateString()) {
+        return date.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
+      } else if (date.toDateString() === yesterday.toDateString()) {
+        return '昨日';
+      } else {
+        return date.toLocaleDateString('ja-JP', { month: 'short', day: 'numeric' });
+      }
+    }
+
+    function getPreview(content) {
+      return content.replace(/[#*_`\n]/g, '').substring(0, 40) + (content.length > 40 ? '...' : '');
+    }
+
+    async function renderList() {
+      const memos = await getAllMemos();
+      const list = document.getElementById('memoList');
+      const emptyState = document.getElementById('emptyState');
+      const count = document.getElementById('memoCount');
+
+      count.textContent = `${memos.length} 件`;
+
+      if (memos.length === 0) {
+        list.innerHTML = '';
+        emptyState.style.display = 'flex';
+        return;
+      }
+
+      emptyState.style.display = 'none';
+      list.innerHTML = memos.map(memo => `
+        <li class="memo-item" data-id="${memo.id}">
+          <div class="memo-title">${memo.title}</div>
+          <div class="memo-preview">${getPreview(memo.content) || '（空）'}</div>
+          <div class="memo-date">${formatDate(memo.updatedAt)}</div>
+        </li>
+      `).join('');
+
+      list.querySelectorAll('.memo-item').forEach(item => {
+        item.addEventListener('click', () => openMemo(parseInt(item.dataset.id)));
+      });
+    }
+
+    function showListView() {
+      document.getElementById('listView').classList.remove('hidden');
+      document.getElementById('editorHeader').style.display = 'none';
+      document.getElementById('editorContainer').classList.remove('active');
+      document.getElementById('fabBtn').classList.remove('hidden');
+      renderList();
+    }
+
+    function showEditorView() {
+      document.getElementById('listView').classList.add('hidden');
+      document.getElementById('editorHeader').style.display = 'block';
+      document.getElementById('editorContainer').classList.add('active');
+      document.getElementById('fabBtn').classList.add('hidden');
+    }
+
+    async function createNewMemo() {
+      const newMemo = {
+        id: Date.now(),
+        title: '新規メモ',
+        content: '',
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      };
+
+      await saveMemo(newMemo);
+      currentMemo = newMemo;
+      document.getElementById('titleInput').value = newMemo.title;
+      document.getElementById('contentInput').value = newMemo.content;
+      updateEditorMeta();
+      showEditorView();
+    }
+
+    async function openMemo(id) {
+      const memos = await getAllMemos();
+      const memo = memos.find(m => m.id === id);
+      if (!memo) return;
+
+      currentMemo = memo;
+      document.getElementById('titleInput').value = memo.title;
+      document.getElementById('contentInput').value = memo.content;
+      updateEditorMeta();
+      showEditorView();
+    }
+
+    async function saveCurrentMemo() {
+      if (!currentMemo) return;
+
+      currentMemo.title = document.getElementById('titleInput').value || '新規メモ';
+      currentMemo.content = document.getElementById('contentInput').value;
+      currentMemo.updatedAt = Date.now();
+
+      await saveMemo(currentMemo);
+      showListView();
+    }
+
+    async function deleteCurrentMemo() {
+      if (!currentMemo) return;
+      if (!confirm('このメモを削除しますか？')) return;
+
+      await deleteMemo(currentMemo.id);
+      currentMemo = null;
+      showListView();
+    }
+
+    function updateEditorMeta() {
+      if (!currentMemo) return;
+      const meta = document.getElementById('editorMeta');
+      const createdDate = new Date(currentMemo.createdAt).toLocaleString('ja-JP');
+      meta.textContent = `作成: ${createdDate}`;
+    }
+
+    // ===== イベントリスナー =====
+    document.getElementById('fabBtn').addEventListener('click', createNewMemo);
+    document.getElementById('saveBtn').addEventListener('click', saveCurrentMemo);
+    document.getElementById('deleteBtn').addEventListener('click', deleteCurrentMemo);
+
+    // URL パラメータ処理
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('action') === 'new') {
+      initDB().then(() => {
+        createNewMemo();
+      });
+    } else {
+      // ===== 初期化 =====
+      initDB().then(() => {
+        renderList();
+      }).catch(err => {
+        console.error('DB init failed:', err);
+        alert('ストレージの初期化に失敗しました。ブラウザの設定を確認してください。');
+      });
+    }
+  </script>
+</body>
+</html>

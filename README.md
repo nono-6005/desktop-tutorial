@@ -1,5 +1,22 @@
-# Welcome to GitHub Desktop!
+# メモ
 
-This is your README. READMEs are where you can communicate what your project is and how to use it.
+Markdown対応のローカルメモアプリ
 
-Write your name on line 6, save it, and then head back to GitHub Desktop.
+## 機能
+
+- Markdown編集
+- ローカル保存（IndexedDB）
+- オフライン完全稼働
+- PWA（ホームスクリーン追加可）
+
+## インストール
+
+このリポジトリを GitHub Pages で公開すると自動でアプリ化されます。
+
+### ホームスクリーン追加方法
+
+**Chrome/Android**
+- アドレスバー → 「アプリをインストール」
+
+**Safari/iOS**
+- 共有ボタン → 「ホーム画面に追加」
