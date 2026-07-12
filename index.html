@@ -595,9 +595,64 @@
     // install プロンプト処理
     let deferredPrompt;
     const installBtn = document.getElementById('installBtn');
+    let beforeInstallPromptFired = false;
+
+    // PWA installability チェック
+    (async function checkInstallability() {
+      const checks = {
+        'HTTPS/localhost': window.location.protocol === 'https:' || window.location.hostname === 'localhost',
+        'manifest.json link': document.querySelector('link[rel="manifest"]') !== null,
+        'Service Worker': 'serviceWorker' in navigator,
+        'iOS (Safari)': /iphone|ipad/.test(navigator.userAgent.toLowerCase()),
+        'Android': /android/.test(navigator.userAgent.toLowerCase()),
+      };
+
+      console.log('=== PWA Installability Check ===');
+      Object.entries(checks).forEach(([key, value]) => {
+        console.log(`${value ? '✓' : '✗'} ${key}`);
+      });
+
+      // manifest.json の内容を検証
+      try {
+        const manifestLink = document.querySelector('link[rel="manifest"]');
+        if (manifestLink) {
+          const response = await fetch(manifestLink.href);
+          const manifest = await response.json();
+          console.log('✓ manifest.json loaded:', {
+            name: manifest.name,
+            display: manifest.display,
+            icons: manifest.icons?.length || 0,
+            startUrl: manifest.start_url,
+          });
+        }
+      } catch (err) {
+        console.log('✗ manifest.json error:', err.message);
+      }
+
+      // beforeinstallprompt は一定時間で発火しなければ発火しない
+      setTimeout(() => {
+        if (!beforeInstallPromptFired) {
+          const isSafari = /iphone|ipad/.test(navigator.userAgent.toLowerCase());
+          const isAndroid = /android/.test(navigator.userAgent.toLowerCase());
+
+          if (isSafari) {
+            console.log('ℹ iOS Safari: Use "Share" → "Add to Home Screen"');
+          } else if (isAndroid) {
+            console.log('✗ beforeinstallprompt not fired (may require app store approval or other conditions)');
+            console.log('   Possible reasons:');
+            console.log('   - User already installed');
+            console.log('   - Browser/device does not support PWA');
+            console.log('   - PWA installability criteria not fully met');
+          } else {
+            console.log('ℹ beforeinstallprompt not available on this device/browser');
+          }
+        }
+      }, 3000);
+    })();
 
     window.addEventListener('beforeinstallprompt', (e) => {
       e.preventDefault();
+      beforeInstallPromptFired = true;
       deferredPrompt = e;
       console.log('✓ beforeinstallprompt fired - install button enabled');
       installBtn.classList.remove('hidden');
@@ -605,26 +660,38 @@
 
     installBtn.addEventListener('click', async () => {
       if (!deferredPrompt) {
-        console.log('✗ deferredPrompt not available');
-        showToast('この環境ではインストールできません', 3000);
+        console.log('✗ deferredPrompt not available - install not supported');
+        const isSafari = /iphone|ipad/.test(navigator.userAgent.toLowerCase());
+        if (isSafari) {
+          showToast('iOS: 共有 → ホーム画面に追加でインストールしてください', 4000);
+        } else {
+          showToast('この環境ではインストールできません。ブラウザを確認してください。', 4000);
+        }
         return;
       }
-      console.log('→ Install prompt dialog showing...');
-      installBtn.classList.add('hidden');
 
-      // オフラインでもすぐ使えるよう、SW の事前キャッシュ完了を待ってから
-      // インストールダイアログを出す（通常は一瞬で完了済み）
-      await swReady;
+      try {
+        console.log('→ Install prompt dialog showing...');
+        installBtn.classList.add('hidden');
 
-      deferredPrompt.prompt();
-      const { outcome } = await deferredPrompt.userChoice;
-      deferredPrompt = null;
+        // オフラインでもすぐ使えるよう、SW の事前キャッシュ完了を待ってから
+        // インストールダイアログを出す（通常は一瞬で完了済み）
+        await swReady;
 
-      if (outcome === 'accepted') {
-        console.log('✓ Install accepted');
-        showToast('インストールしました。ホーム画面から開くとすぐに使えます。', 5000);
-      } else {
-        console.log('✗ Install cancelled');
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        deferredPrompt = null;
+
+        if (outcome === 'accepted') {
+          console.log('✓ Install accepted');
+          showToast('インストールしました。ホーム画面から開くとすぐに使えます。', 5000);
+        } else {
+          console.log('✗ Install cancelled by user');
+          installBtn.classList.remove('hidden');
+        }
+      } catch (err) {
+        console.log('✗ Install error:', err.message);
+        showToast('インストールに失敗しました。ブラウザを確認してください。', 4000);
         installBtn.classList.remove('hidden');
       }
     });
