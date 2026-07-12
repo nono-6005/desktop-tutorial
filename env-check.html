@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>環境情報確認 - メモアプリ</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #0f0f0f;
+      color: #d4d4d4;
+      padding: 1rem;
+    }
+
+    .container {
+      max-width: 600px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      color: #f5e6d3;
+      margin-bottom: 1.5rem;
+      font-size: 1.5rem;
+    }
+
+    .section {
+      background: #1a1a1a;
+      border: 1px solid #333;
+      border-radius: 8px;
+      padding: 1rem;
+      margin-bottom: 1rem;
+    }
+
+    .section h2 {
+      font-size: 1rem;
+      color: #d97757;
+      margin-bottom: 0.75rem;
+      border-bottom: 1px solid #333;
+      padding-bottom: 0.5rem;
+    }
+
+    .info-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 0.5rem 0;
+      font-size: 0.9rem;
+    }
+
+    .label {
+      color: #888;
+      font-weight: 500;
+    }
+
+    .value {
+      color: #f5e6d3;
+      text-align: right;
+      word-break: break-word;
+    }
+
+    .status {
+      display: inline-block;
+      padding: 0.2rem 0.6rem;
+      border-radius: 4px;
+      font-size: 0.85rem;
+      font-weight: 500;
+    }
+
+    .status.ok {
+      background: rgba(100, 200, 100, 0.2);
+      color: #90ff90;
+    }
+
+    .status.warn {
+      background: rgba(200, 150, 100, 0.2);
+      color: #ffaa66;
+    }
+
+    .status.ng {
+      background: rgba(200, 100, 100, 0.2);
+      color: #ff6666;
+    }
+
+    .back {
+      display: inline-block;
+      margin-top: 1rem;
+      padding: 0.6rem 1.2rem;
+      background: #d97757;
+      color: white;
+      text-decoration: none;
+      border-radius: 6px;
+      font-size: 0.9rem;
+    }
+
+    .back:active {
+      opacity: 0.8;
+    }
+
+    code {
+      background: #0f0f0f;
+      padding: 0.2rem 0.4rem;
+      border-radius: 3px;
+      font-size: 0.85rem;
+      color: #ffaa66;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>📊 環境情報確認</h1>
+
+    <div id="content"></div>
+
+    <a href="./" class="back">← メモアプリに戻る</a>
+  </div>
+
+  <script>
+    async function checkEnvironment() {
+      const ua = navigator.userAgent;
+      const isIOS = /iphone|ipad|ipod/.test(ua.toLowerCase());
+      const isAndroid = /android/.test(ua.toLowerCase());
+      const isChrome = /chrome/.test(ua.toLowerCase()) && !/edge/.test(ua.toLowerCase());
+      const isEdge = /edge|edg/.test(ua.toLowerCase());
+      const isFirefox = /firefox/.test(ua.toLowerCase());
+      const isSafari = /safari/.test(ua.toLowerCase()) && !/chrome|edge|firefox/.test(ua.toLowerCase());
+
+      const checks = {
+        device: {
+          'iOS': isIOS,
+          'Android': isAndroid,
+          'Chrome': isChrome,
+          'Edge': isEdge,
+          'Firefox': isFirefox,
+          'Safari': isSafari,
+        },
+        features: {
+          'HTTPS': window.location.protocol === 'https:',
+          'Service Worker': 'serviceWorker' in navigator,
+          'beforeinstallprompt': true,
+          'IndexedDB': !!window.indexedDB,
+          'localStorage': !!window.localStorage,
+          'Web App Mode': window.matchMedia('(display-mode: standalone)').matches,
+          'iOS Standalone': window.navigator.standalone === true,
+        },
+        connectivity: {
+          'Online': navigator.onLine,
+          'Connection': navigator.connection ? navigator.connection.effectiveType : 'unknown',
+          'Save-Data': navigator.connection ? navigator.connection.saveData : 'unknown',
+        },
+      };
+
+      // Service Worker 状態確認
+      let swStatus = 'not registered';
+      if ('serviceWorker' in navigator) {
+        try {
+          const registrations = await navigator.serviceWorker.getRegistrations();
+          if (registrations.length > 0) {
+            const reg = registrations[0];
+            if (reg.active) swStatus = 'active';
+            else if (reg.installing) swStatus = 'installing';
+            else if (reg.waiting) swStatus = 'waiting';
+          }
+        } catch (e) {
+          swStatus = 'error: ' + e.message;
+        }
+      }
+
+      // Manifest 確認
+      let manifestStatus = 'not found';
+      const manifestLink = document.querySelector('link[rel="manifest"]');
+      if (manifestLink) {
+        try {
+          const response = await fetch(manifestLink.href);
+          if (response.ok) {
+            const manifest = await response.json();
+            manifestStatus = `loaded (${manifest.name})`;
+          } else {
+            manifestStatus = 'fetch error: ' + response.status;
+          }
+        } catch (e) {
+          manifestStatus = 'error: ' + e.message;
+        }
+      }
+
+      // IndexedDB 状態確認
+      let dbStatus = 'checking...';
+      try {
+        const request = indexedDB.open('MemoApp', 1);
+        await new Promise((resolve, reject) => {
+          request.onerror = () => reject(request.error);
+          request.onsuccess = () => resolve();
+        });
+        dbStatus = 'accessible';
+      } catch (e) {
+        dbStatus = 'error: ' + e.message;
+      }
+
+      // beforeinstallprompt イベント監視
+      let beforeinstallStatus = 'waiting...';
+      window.addEventListener('beforeinstallprompt', () => {
+        beforeinstallStatus = '✓ fired';
+      });
+      setTimeout(() => {
+        if (beforeinstallStatus === 'waiting...') {
+          if (isIOS) {
+            beforeinstallStatus = 'iOS Safari (use Share button)';
+          } else if (isAndroid && isChrome) {
+            beforeinstallStatus = 'Android Chrome (check menu)';
+          } else {
+            beforeinstallStatus = 'not fired';
+          }
+          document.getElementById('beforeinstallStatus').textContent = beforeinstallStatus;
+        }
+      }, 3000);
+
+      // HTML 生成
+      let html = '';
+
+      // デバイス情報
+      html += '<div class="section">';
+      html += '<h2>📱 デバイス情報</h2>';
+      for (const [key, value] of Object.entries(checks.device)) {
+        if (value) {
+          html += `<div class="info-row">
+            <span class="label">${key}</span>
+            <span class="status ok">✓</span>
+          </div>`;
+        }
+      }
+      html += `<div class="info-row">
+        <span class="label">User Agent</span>
+        <span class="value" style="font-size: 0.75rem;">${ua.substring(0, 60)}...</span>
+      </div>`;
+      html += `<div class="info-row">
+        <span class="label">Viewport</span>
+        <span class="value">${window.innerWidth}x${window.innerHeight}</span>
+      </div>`;
+      html += '</div>';
+
+      // 機能確認
+      html += '<div class="section">';
+      html += '<h2>⚙️ 機能確認</h2>';
+      for (const [key, value] of Object.entries(checks.features)) {
+        const status = value ? 'ok' : 'ng';
+        const icon = value ? '✓' : '✗';
+        html += `<div class="info-row">
+          <span class="label">${key}</span>
+          <span class="status ${status}">${icon}</span>
+        </div>`;
+      }
+      html += '</div>';
+
+      // ネットワーク情報
+      html += '<div class="section">';
+      html += '<h2>🌐 ネットワーク</h2>';
+      for (const [key, value] of Object.entries(checks.connectivity)) {
+        const status = value && value !== 'unknown' ? 'ok' : 'warn';
+        html += `<div class="info-row">
+          <span class="label">${key}</span>
+          <span class="value">${value}</span>
+        </div>`;
+      }
+      html += '</div>';
+
+      // PWA 対応状況
+      html += '<div class="section">';
+      html += '<h2>📦 PWA 対応状況</h2>';
+      html += `<div class="info-row">
+        <span class="label">Service Worker</span>
+        <span class="value">${swStatus}</span>
+      </div>`;
+      html += `<div class="info-row">
+        <span class="label">manifest.json</span>
+        <span class="value">${manifestStatus}</span>
+      </div>`;
+      html += `<div class="info-row">
+        <span class="label">beforeinstallprompt</span>
+        <span class="value" id="beforeinstallStatus">${beforeinstallStatus}</span>
+      </div>`;
+      html += `<div class="info-row">
+        <span class="label">IndexedDB</span>
+        <span class="value">${dbStatus}</span>
+      </div>`;
+      html += '</div>';
+
+      // インストール方法
+      html += '<div class="section">';
+      html += '<h2>💾 インストール方法</h2>';
+      if (isIOS) {
+        html += `<div class="info-row">
+          <span class="value">下の「共有」ボタン → 「ホーム画面に追加」</span>
+        </div>`;
+      } else if (isAndroid) {
+        html += `<div class="info-row">
+          <span class="value">ブラウザメニュー「⋮」→ 「インストール」</span>
+        </div>`;
+      } else {
+        html += `<div class="info-row">
+          <span class="value">お使いのデバイスでは PWA インストールに対応していないか、別の方法が必要です。</span>
+        </div>`;
+      }
+      html += '</div>';
+
+      document.getElementById('content').innerHTML = html;
+    }
+
+    checkEnvironment().catch(console.error);
+  </script>
+</body>
+</html>

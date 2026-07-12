@@ -500,7 +500,8 @@
             <h1>メモ</h1>
             <p class="header-count" id="memoCount">0 件</p>
           </div>
-          <button id="installBtn" class="install-btn hidden">📲 インストール</button>
+          <button id="installBtn" class="install-btn">📲 インストール</button>
+          <a href="./env-check.html" style="margin-left: 0.5rem; color: #888; text-decoration: none; font-size: 0.85rem; padding: 0.55rem 0.6rem;">⚙️</a>
         </div>
       </div>
       <div class="content">
@@ -549,6 +550,30 @@
       }, duration);
     }
 
+    // ===== OS 判定 =====
+    const ua = navigator.userAgent.toLowerCase();
+    const isIOS = /iphone|ipad|ipod/.test(ua);
+    const isAndroid = /android/.test(ua);
+    const isTablet = /ipad|android(?!.*mobile)/.test(ua);
+    const isMobile = /mobile|iphone|ipod/.test(ua);
+
+    // ===== デバッグ情報出力 =====
+    (function logEnvironment() {
+      const viewport = { width: window.innerWidth, height: window.innerHeight };
+      const displayMode = window.matchMedia('(display-mode: standalone)').matches ? 'standalone' : 'browser';
+      const isStandalone = window.navigator.standalone === true;
+
+      console.log('=== メモアプリ 環境情報 ===');
+      console.log('Device:', isTablet ? 'tablet' : isMobile ? 'mobile' : 'desktop');
+      console.log('OS:', isIOS ? 'iOS' : isAndroid ? 'Android' : 'Other');
+      console.log('Viewport:', `${viewport.width}x${viewport.height}`);
+      console.log('UA:', navigator.userAgent.substring(0, 80) + '...');
+      console.log('Display Mode:', displayMode);
+      console.log('Standalone:', isStandalone);
+      console.log('SW Support:', 'serviceWorker' in navigator);
+      console.log('beforeinstallprompt Support:', true);
+    })();
+
     // ===== PWA インストール =====
     // SW の登録＆事前キャッシュが完了してからでないと、インストール直後に
     // オフラインで開いた場合に一部アセットが読み込めない可能性があるため、
@@ -556,57 +581,154 @@
     let swReady = Promise.resolve();
     if ('serviceWorker' in navigator) {
       swReady = navigator.serviceWorker.register('./sw.js').then((reg) => {
+        console.log('✓ Service Worker registered');
         // 既存の SW がなくアクティブになるまで待機（初回インストール時）
         if (reg.installing) {
           return new Promise((resolve) => {
             reg.installing.addEventListener('statechange', function () {
-              if (this.state === 'activated') resolve();
+              if (this.state === 'activated') {
+                console.log('✓ Service Worker activated');
+                resolve();
+              }
             });
           });
         }
       }).catch(() => {
-        console.log('Service Worker registration failed');
+        console.log('✗ Service Worker registration failed');
       });
     }
 
     // install プロンプト処理
     let deferredPrompt;
     const installBtn = document.getElementById('installBtn');
+    let beforeInstallPromptFired = false;
+
+    // PWA installability チェック
+    (async function checkInstallability() {
+      const checks = {
+        'HTTPS/localhost': window.location.protocol === 'https:' || window.location.hostname === 'localhost',
+        'manifest.json link': document.querySelector('link[rel="manifest"]') !== null,
+        'Service Worker': 'serviceWorker' in navigator,
+        'iOS (Safari)': /iphone|ipad/.test(navigator.userAgent.toLowerCase()),
+        'Android': /android/.test(navigator.userAgent.toLowerCase()),
+      };
+
+      console.log('=== PWA Installability Check ===');
+      Object.entries(checks).forEach(([key, value]) => {
+        console.log(`${value ? '✓' : '✗'} ${key}`);
+      });
+
+      // manifest.json の内容を検証
+      try {
+        const manifestLink = document.querySelector('link[rel="manifest"]');
+        if (manifestLink) {
+          const response = await fetch(manifestLink.href);
+          const manifest = await response.json();
+          console.log('✓ manifest.json loaded:', {
+            name: manifest.name,
+            display: manifest.display,
+            icons: manifest.icons?.length || 0,
+            startUrl: manifest.start_url,
+          });
+        }
+      } catch (err) {
+        console.log('✗ manifest.json error:', err.message);
+      }
+
+      // beforeinstallprompt は一定時間で発火しなければ発火しない
+      setTimeout(() => {
+        if (!beforeInstallPromptFired) {
+          const isSafari = /iphone|ipad/.test(navigator.userAgent.toLowerCase());
+          const isAndroid = /android/.test(navigator.userAgent.toLowerCase());
+
+          if (isSafari) {
+            console.log('ℹ iOS Safari: Use "Share" → "Add to Home Screen"');
+          } else if (isAndroid) {
+            console.log('✗ beforeinstallprompt not fired (may require app store approval or other conditions)');
+            console.log('   Possible reasons:');
+            console.log('   - User already installed');
+            console.log('   - Browser/device does not support PWA');
+            console.log('   - PWA installability criteria not fully met');
+          } else {
+            console.log('ℹ beforeinstallprompt not available on this device/browser');
+          }
+        }
+      }, 3000);
+    })();
 
     window.addEventListener('beforeinstallprompt', (e) => {
       e.preventDefault();
+      beforeInstallPromptFired = true;
       deferredPrompt = e;
+      console.log('✓ beforeinstallprompt fired - install button enabled');
       installBtn.classList.remove('hidden');
     });
 
     installBtn.addEventListener('click', async () => {
-      if (!deferredPrompt) return;
-      installBtn.classList.add('hidden');
+      if (!deferredPrompt) {
+        console.log('✗ deferredPrompt not available - install not supported');
+        if (isIOS) {
+          showToast('iOS: 下の「共有」→「ホーム画面に追加」でインストール', 5000);
+        } else if (isAndroid) {
+          showToast('Android: ブラウザメニュー「⋮」→「インストール」でアプリ化', 5000);
+        } else {
+          showToast('お使いのブラウザでは自動インストールできません', 4000);
+        }
+        return;
+      }
 
-      // オフラインでもすぐ使えるよう、SW の事前キャッシュ完了を待ってから
-      // インストールダイアログを出す（通常は一瞬で完了済み）
-      await swReady;
+      try {
+        console.log('→ Install prompt dialog showing...');
+        installBtn.classList.add('hidden');
 
-      deferredPrompt.prompt();
-      const { outcome } = await deferredPrompt.userChoice;
-      deferredPrompt = null;
+        // オフラインでもすぐ使えるよう、SW の事前キャッシュ完了を待ってから
+        // インストールダイアログを出す（通常は一瞬で完了済み）
+        await swReady;
 
-      if (outcome === 'accepted') {
-        showToast('インストールしました。ホーム画面から開くとすぐに使えます。', 5000);
-      } else {
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        deferredPrompt = null;
+
+        if (outcome === 'accepted') {
+          console.log('✓ Install accepted');
+          showToast('インストールしました。ホーム画面から開くとすぐに使えます。', 5000);
+        } else {
+          console.log('✗ Install cancelled by user');
+          installBtn.classList.remove('hidden');
+        }
+      } catch (err) {
+        console.log('✗ Install error:', err.message);
+        showToast('インストールに失敗しました。ブラウザを確認してください。', 4000);
         installBtn.classList.remove('hidden');
       }
     });
 
     window.addEventListener('appinstalled', () => {
+      console.log('✓ App installed from PWA prompt');
       installBtn.classList.add('hidden');
       deferredPrompt = null;
     });
 
     // すでにインストール済み（スタンドアロン起動）の場合はボタンを出さない
     if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone) {
+      console.log('✓ Running as standalone app');
       installBtn.classList.add('hidden');
     }
+
+    // OS別インストール案内
+    (function showInstallGuidance() {
+      const isAlreadyInstalled = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+      if (isAlreadyInstalled) return;
+
+      // 少し遅延させて表示（UI が安定してから）
+      setTimeout(() => {
+        if (isIOS) {
+          showToast('iOS: 下の「共有」→「ホーム画面に追加」でインストール', 5000);
+        } else if (isAndroid) {
+          showToast('Android: メニュー「⋮」→「インストール」でアプリ化', 5000);
+        }
+      }, 2000);
+    })();
 
     // ===== IndexedDB 管理 =====
     let db = null;
