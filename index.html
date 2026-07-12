@@ -500,7 +500,7 @@
             <h1>メモ</h1>
             <p class="header-count" id="memoCount">0 件</p>
           </div>
-          <button id="installBtn" class="install-btn hidden">📲 インストール</button>
+          <button id="installBtn" class="install-btn">📲 インストール</button>
         </div>
       </div>
       <div class="content">
@@ -580,7 +580,10 @@
     });
 
     installBtn.addEventListener('click', async () => {
-      if (!deferredPrompt) return;
+      if (!deferredPrompt) {
+        showToast('この環境ではインストールできません', 3000);
+        return;
+      }
       installBtn.classList.add('hidden');
 
       // オフラインでもすぐ使えるよう、SW の事前キャッシュ完了を待ってから
