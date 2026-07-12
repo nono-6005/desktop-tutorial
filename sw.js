@@ -1,6 +1,7 @@
 const CACHE_NAME = 'memo-app-v3';
 const ASSETS_TO_CACHE = [
   './index.html',
+  './env-check.html',
   './manifest.json',
   './sw.js',
   './icons/icon-192.png',
