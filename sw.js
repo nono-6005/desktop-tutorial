@@ -1,4 +1,4 @@
-const CACHE_NAME = 'memo-app-v1';
+const CACHE_NAME = 'memo-app-v2';
 const ASSETS_TO_CACHE = [
   './index.html',
   './manifest.json',
@@ -36,11 +36,29 @@ self.addEventListener('activate', (event) => {
 
 // フェッチ
 self.addEventListener('fetch', (event) => {
-  // POST リクエストはキャッシュしない
-  if (event.request.method === 'POST') {
+  if (event.request.method !== 'GET') {
     return;
   }
 
+  // ページ本体はネットワーク優先（更新がすぐ届く）、オフライン時のみキャッシュ
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request).then((response) => {
+        const responseToCache = response.clone();
+        caches.open(CACHE_NAME).then((cache) => {
+          cache.put(event.request, responseToCache);
+        });
+        return response;
+      }).catch(() => {
+        return caches.match(event.request).then((cachedResponse) => {
+          return cachedResponse || caches.match('./index.html');
+        });
+      })
+    );
+    return;
+  }
+
+  // その他のアセットはキャッシュ優先
   event.respondWith(
     caches.match(event.request).then((response) => {
       if (response) {
@@ -48,7 +66,6 @@ self.addEventListener('fetch', (event) => {
       }
 
       return fetch(event.request).then((response) => {
-        // キャッシュ可能なレスポンスをキャッシュ
         if (!response || response.status !== 200 || response.type === 'error') {
           return response;
         }
@@ -60,7 +77,6 @@ self.addEventListener('fetch', (event) => {
 
         return response;
       }).catch(() => {
-        // ネットワーク失敗時、キャッシュから返す
         return caches.match(event.request).then((cachedResponse) => {
           return cachedResponse || new Response('オフラインです', { status: 503 });
         });
