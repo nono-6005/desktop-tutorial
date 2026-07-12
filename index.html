@@ -455,6 +455,14 @@
       return content.replace(/[#*_`\n]/g, '').substring(0, 40) + (content.length > 40 ? '...' : '');
     }
 
+    function escapeHtml(str) {
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
     async function renderList() {
       const memos = await getAllMemos();
       const list = document.getElementById('memoList');
@@ -472,8 +480,8 @@
       emptyState.style.display = 'none';
       list.innerHTML = memos.map(memo => `
         <li class="memo-item" data-id="${memo.id}">
-          <div class="memo-title">${memo.title}</div>
-          <div class="memo-preview">${getPreview(memo.content) || '（空）'}</div>
+          <div class="memo-title">${escapeHtml(memo.title)}</div>
+          <div class="memo-preview">${escapeHtml(getPreview(memo.content)) || '（空）'}</div>
           <div class="memo-date">${formatDate(memo.updatedAt)}</div>
         </li>
       `).join('');
@@ -550,17 +558,22 @@
     function downloadCurrentMemo() {
       if (!currentMemo) return;
 
-      const title = currentMemo.title || '無題';
-      const content = currentMemo.content;
-      const filename = `${title}.md`;
+      // 未保存の編集内容もそのままダウンロードする
+      const title = document.getElementById('titleInput').value || '無題';
+      const content = document.getElementById('contentInput').value;
+      // ファイル名に使えない文字を除去
+      const filename = `${title.replace(/[\\/:*?"<>|]/g, '_')}.md`;
 
+      const blob = new Blob([content], { type: 'text/markdown;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
       const element = document.createElement('a');
-      element.setAttribute('href', 'data:text/markdown;charset=utf-8,' + encodeURIComponent(content));
-      element.setAttribute('download', filename);
+      element.href = url;
+      element.download = filename;
       element.style.display = 'none';
       document.body.appendChild(element);
       element.click();
       document.body.removeChild(element);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
     }
 
     function updateEditorMeta() {
