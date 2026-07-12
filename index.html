@@ -416,26 +416,17 @@
       }
 
       #editorHeader {
-        display: block !important;
         border-right: none;
         border-bottom: 1px solid rgba(180, 120, 60, 0.2);
         position: relative;
         top: 0;
       }
 
+      /* タブレットではエディタ枠を常時表示（2カラム） */
       .editor-wrapper {
         flex: 1;
         display: flex;
         flex-direction: column;
-      }
-
-      .fab {
-        bottom: auto;
-        right: auto;
-        position: absolute;
-        bottom: 2rem;
-        right: 2rem;
-        z-index: 50;
       }
 
       .header h1 {
@@ -468,13 +459,13 @@
         font-size: 0.9rem;
       }
 
-      /* 空のメモリストが表示されている場合のみ fab を表示 */
-      .list-view.hidden + .editor-wrapper .fab {
-        display: none;
+      /* タブレットではリストを常時表示（エディタ表示中も隠さない） */
+      .list-view.hidden {
+        display: flex;
       }
 
-      /* リスト表示時は fab を表示 */
-      .list-view:not(.hidden) ~ .editor-wrapper .fab {
+      /* タブレットでは fab を常時表示 */
+      .fab.hidden {
         display: flex;
       }
     }
@@ -536,10 +527,10 @@
         <textarea class="content-input" id="contentInput" placeholder="Markdown で記述..."></textarea>
         <div class="editor-meta" id="editorMeta"></div>
       </div>
-
-      <!-- 新規作成ボタン -->
-      <button class="fab" id="fabBtn">+</button>
     </div>
+
+    <!-- 新規作成ボタン -->
+    <button class="fab" id="fabBtn">+</button>
 
     <!-- トースト通知 -->
     <div class="toast" id="toast"></div>
@@ -733,44 +724,23 @@
       });
     }
 
-    function isTablet() {
-      return window.innerWidth >= 768;
-    }
-
+    // 表示切り替え。モバイルではリスト⇄エディタを切り替え、
+    // タブレット（768px〜）では CSS 側でリスト・fab が常時表示になる
     function showListView() {
-      const isTabletView = isTablet();
-
-      if (isTabletView) {
-        // タブレット：エディタを非表示にするだけ
-        document.getElementById('editorWrapper').classList.remove('active');
-        document.getElementById('editorHeader').style.display = 'none';
-        document.getElementById('editorContainer').classList.remove('active');
-      } else {
-        // モバイル：従来の動作
-        document.getElementById('listView').classList.remove('hidden');
-        document.getElementById('editorHeader').style.display = 'none';
-        document.getElementById('editorContainer').classList.remove('active');
-        document.getElementById('fabBtn').classList.remove('hidden');
-      }
-
+      document.getElementById('listView').classList.remove('hidden');
+      document.getElementById('editorWrapper').classList.remove('active');
+      document.getElementById('editorHeader').style.display = 'none';
+      document.getElementById('editorContainer').classList.remove('active');
+      document.getElementById('fabBtn').classList.remove('hidden');
       renderList();
     }
 
     function showEditorView() {
-      const isTabletView = isTablet();
-
-      if (isTabletView) {
-        // タブレット：エディタを表示（リストはそのまま）
-        document.getElementById('editorWrapper').classList.add('active');
-        document.getElementById('editorHeader').style.display = 'block';
-        document.getElementById('editorContainer').classList.add('active');
-      } else {
-        // モバイル：従来の動作
-        document.getElementById('listView').classList.add('hidden');
-        document.getElementById('editorHeader').style.display = 'block';
-        document.getElementById('editorContainer').classList.add('active');
-        document.getElementById('fabBtn').classList.add('hidden');
-      }
+      document.getElementById('listView').classList.add('hidden');
+      document.getElementById('editorWrapper').classList.add('active');
+      document.getElementById('editorHeader').style.display = 'block';
+      document.getElementById('editorContainer').classList.add('active');
+      document.getElementById('fabBtn').classList.add('hidden');
     }
 
     async function createNewMemo() {
