@@ -5,11 +5,11 @@ Create and deploy a PWA memo app with Markdown support.
 ## Description
 
 Generates a fully functional Progressive Web App (PWA) for note-taking with:
-- Markdown editing with real-time preview
+- Markdown editing
 - Local storage (IndexedDB)
 - Offline support via Service Worker
 - Download memos as Markdown files
-- iPhone/Android home screen installation
+- Bookmark guidance for iOS/Android/desktop (device-agnostic; native install prompts are unreliable on many tablets, so this is the primary "quick access" path)
 - GitHub Pages deployment ready
 
 ## Usage
@@ -33,19 +33,20 @@ Or with parameters:
 
 ## What it creates
 
-1. **index.html** - Main app with UI, editor, and IndexedDB integration
-2. **manifest.json** - PWA manifest for installability
+1. **index.html** - Main app with UI, editor, IndexedDB integration, and bookmark guide modal (generated from `templates/index.html`, with `{{APP_NAME}}`, `{{THEME_COLOR}}`, `{{APP_DESCRIPTION}}` substituted)
+2. **manifest.json** - PWA manifest (still useful for SW scope/offline; installability is a bonus, not guaranteed)
 3. **sw.js** - Service Worker for offline support and caching
 4. **README.md** - Setup instructions
 
 ## Features
 
 ✅ Create, edit, delete notes
-✅ Markdown support with live preview  
+✅ Markdown editing
 ✅ Notes stored locally (survive refresh)
 ✅ Download notes as .md files
 ✅ Fully offline capable
-✅ Install to home screen as app
+✅ Bookmark guide (works regardless of device PWA-install support)
+✅ Responsive layout: single-column on mobile, 2-column list+editor on tablet/desktop (≥768px)
 ✅ Dark theme, mobile-optimized UI
 ✅ No server needed, runs entirely in browser
 
