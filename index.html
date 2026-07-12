@@ -76,6 +76,32 @@
       margin-top: 0.25rem;
     }
 
+    .install-btn {
+      background: linear-gradient(135deg, #d97757 0%, #b4783c 100%);
+      border: none;
+      color: white;
+      font-size: 0.85rem;
+      font-weight: 500;
+      padding: 0.55rem 0.9rem;
+      border-radius: 999px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+      -webkit-user-select: none;
+      user-select: none;
+      transition: transform 0.15s ease;
+    }
+
+    .install-btn:active {
+      transform: scale(0.95);
+    }
+
+    .install-btn.hidden {
+      display: none;
+    }
+
     .header-edit {
       display: flex;
       justify-content: space-between;
@@ -451,6 +477,7 @@
             <h1>メモ</h1>
             <p class="header-count" id="memoCount">0 件</p>
           </div>
+          <button id="installBtn" class="install-btn hidden">📲 インストール</button>
         </div>
       </div>
       <div class="content">
@@ -493,11 +520,31 @@
 
     // install プロンプト処理
     let deferredPrompt;
+    const installBtn = document.getElementById('installBtn');
+
     window.addEventListener('beforeinstallprompt', (e) => {
       e.preventDefault();
       deferredPrompt = e;
-      // 必要に応じてインストールボタンを表示
+      installBtn.classList.remove('hidden');
     });
+
+    installBtn.addEventListener('click', async () => {
+      if (!deferredPrompt) return;
+      installBtn.classList.add('hidden');
+      deferredPrompt.prompt();
+      await deferredPrompt.userChoice;
+      deferredPrompt = null;
+    });
+
+    window.addEventListener('appinstalled', () => {
+      installBtn.classList.add('hidden');
+      deferredPrompt = null;
+    });
+
+    // すでにインストール済み（スタンドアロン起動）の場合はボタンを出さない
+    if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone) {
+      installBtn.classList.add('hidden');
+    }
 
     // ===== IndexedDB 管理 =====
     let db = null;
