@@ -102,6 +102,38 @@
       display: none;
     }
 
+    /* ===== トースト通知 ===== */
+    .toast {
+      position: fixed;
+      left: 50%;
+      bottom: 2rem;
+      transform: translate(-50%, 1rem);
+      background: #2a2a2a;
+      color: #f5e6d3;
+      padding: 0.9rem 1.4rem;
+      border-radius: 12px;
+      font-size: 0.9rem;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+      border: 1px solid rgba(180, 120, 60, 0.3);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s ease, transform 0.25s ease;
+      z-index: 200;
+      max-width: 90vw;
+      text-align: center;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translate(-50%, 0);
+    }
+
+    @supports (padding: max(0px)) {
+      .toast {
+        bottom: max(2rem, calc(2rem + env(safe-area-inset-bottom)));
+      }
+    }
+
     .header-edit {
       display: flex;
       justify-content: space-between;
@@ -508,12 +540,40 @@
       <!-- 新規作成ボタン -->
       <button class="fab" id="fabBtn">+</button>
     </div>
+
+    <!-- トースト通知 -->
+    <div class="toast" id="toast"></div>
   </div>
 
   <script>
+    // ===== トースト通知 =====
+    let toastTimer = null;
+    function showToast(message, duration = 3500) {
+      const toast = document.getElementById('toast');
+      toast.textContent = message;
+      toast.classList.add('show');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => {
+        toast.classList.remove('show');
+      }, duration);
+    }
+
     // ===== PWA インストール =====
+    // SW の登録＆事前キャッシュが完了してからでないと、インストール直後に
+    // オフラインで開いた場合に一部アセットが読み込めない可能性があるため、
+    // 登録完了を待ってから "使える状態" として扱う。
+    let swReady = Promise.resolve();
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('./sw.js').catch(() => {
+      swReady = navigator.serviceWorker.register('./sw.js').then((reg) => {
+        // 既存の SW がなくアクティブになるまで待機（初回インストール時）
+        if (reg.installing) {
+          return new Promise((resolve) => {
+            reg.installing.addEventListener('statechange', function () {
+              if (this.state === 'activated') resolve();
+            });
+          });
+        }
+      }).catch(() => {
         console.log('Service Worker registration failed');
       });
     }
@@ -531,9 +591,20 @@
     installBtn.addEventListener('click', async () => {
       if (!deferredPrompt) return;
       installBtn.classList.add('hidden');
+
+      // オフラインでもすぐ使えるよう、SW の事前キャッシュ完了を待ってから
+      // インストールダイアログを出す（通常は一瞬で完了済み）
+      await swReady;
+
       deferredPrompt.prompt();
-      await deferredPrompt.userChoice;
+      const { outcome } = await deferredPrompt.userChoice;
       deferredPrompt = null;
+
+      if (outcome === 'accepted') {
+        showToast('インストールしました。ホーム画面から開くとすぐに使えます。', 5000);
+      } else {
+        installBtn.classList.remove('hidden');
+      }
     });
 
     window.addEventListener('appinstalled', () => {
