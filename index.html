@@ -345,6 +345,7 @@
     <div class="header" id="editorHeader" style="display: none;">
       <div class="header-edit">
         <button id="saveBtn">← 保存</button>
+        <button id="downloadBtn">📥</button>
         <button class="delete-btn" id="deleteBtn">🗑</button>
       </div>
     </div>
@@ -546,6 +547,22 @@
       showListView();
     }
 
+    function downloadCurrentMemo() {
+      if (!currentMemo) return;
+
+      const title = currentMemo.title || '無題';
+      const content = currentMemo.content;
+      const filename = `${title}.md`;
+
+      const element = document.createElement('a');
+      element.setAttribute('href', 'data:text/markdown;charset=utf-8,' + encodeURIComponent(content));
+      element.setAttribute('download', filename);
+      element.style.display = 'none';
+      document.body.appendChild(element);
+      element.click();
+      document.body.removeChild(element);
+    }
+
     function updateEditorMeta() {
       if (!currentMemo) return;
       const meta = document.getElementById('editorMeta');
@@ -556,6 +573,7 @@
     // ===== イベントリスナー =====
     document.getElementById('fabBtn').addEventListener('click', createNewMemo);
     document.getElementById('saveBtn').addEventListener('click', saveCurrentMemo);
+    document.getElementById('downloadBtn').addEventListener('click', downloadCurrentMemo);
     document.getElementById('deleteBtn').addEventListener('click', deleteCurrentMemo);
 
     // URL パラメータ処理
