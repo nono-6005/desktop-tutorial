@@ -549,6 +549,25 @@
       }, duration);
     }
 
+    // ===== デバッグ情報出力 =====
+    (function logEnvironment() {
+      const ua = navigator.userAgent;
+      const isTablet = /ipad|android(?!.*mobile)/i.test(ua.toLowerCase());
+      const isMobile = /mobile|iphone|ipod/i.test(ua.toLowerCase());
+      const viewport = { width: window.innerWidth, height: window.innerHeight };
+      const displayMode = window.matchMedia('(display-mode: standalone)').matches ? 'standalone' : 'browser';
+      const isStandalone = window.navigator.standalone === true;
+
+      console.log('=== メモアプリ 環境情報 ===');
+      console.log('Device:', isTablet ? 'tablet' : isMobile ? 'mobile' : 'desktop');
+      console.log('Viewport:', `${viewport.width}x${viewport.height}`);
+      console.log('UA:', ua.substring(0, 80) + '...');
+      console.log('Display Mode:', displayMode);
+      console.log('Standalone:', isStandalone);
+      console.log('SW Support:', 'serviceWorker' in navigator);
+      console.log('beforeinstallprompt Support:', true);
+    })();
+
     // ===== PWA インストール =====
     // SW の登録＆事前キャッシュが完了してからでないと、インストール直後に
     // オフラインで開いた場合に一部アセットが読み込めない可能性があるため、
@@ -556,16 +575,20 @@
     let swReady = Promise.resolve();
     if ('serviceWorker' in navigator) {
       swReady = navigator.serviceWorker.register('./sw.js').then((reg) => {
+        console.log('✓ Service Worker registered');
         // 既存の SW がなくアクティブになるまで待機（初回インストール時）
         if (reg.installing) {
           return new Promise((resolve) => {
             reg.installing.addEventListener('statechange', function () {
-              if (this.state === 'activated') resolve();
+              if (this.state === 'activated') {
+                console.log('✓ Service Worker activated');
+                resolve();
+              }
             });
           });
         }
       }).catch(() => {
-        console.log('Service Worker registration failed');
+        console.log('✗ Service Worker registration failed');
       });
     }
 
@@ -576,14 +599,17 @@
     window.addEventListener('beforeinstallprompt', (e) => {
       e.preventDefault();
       deferredPrompt = e;
+      console.log('✓ beforeinstallprompt fired - install button enabled');
       installBtn.classList.remove('hidden');
     });
 
     installBtn.addEventListener('click', async () => {
       if (!deferredPrompt) {
+        console.log('✗ deferredPrompt not available');
         showToast('この環境ではインストールできません', 3000);
         return;
       }
+      console.log('→ Install prompt dialog showing...');
       installBtn.classList.add('hidden');
 
       // オフラインでもすぐ使えるよう、SW の事前キャッシュ完了を待ってから
@@ -595,19 +621,23 @@
       deferredPrompt = null;
 
       if (outcome === 'accepted') {
+        console.log('✓ Install accepted');
         showToast('インストールしました。ホーム画面から開くとすぐに使えます。', 5000);
       } else {
+        console.log('✗ Install cancelled');
         installBtn.classList.remove('hidden');
       }
     });
 
     window.addEventListener('appinstalled', () => {
+      console.log('✓ App installed from PWA prompt');
       installBtn.classList.add('hidden');
       deferredPrompt = null;
     });
 
     // すでにインストール済み（スタンドアロン起動）の場合はボタンを出さない
     if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone) {
+      console.log('✓ Running as standalone app');
       installBtn.classList.add('hidden');
     }
 
