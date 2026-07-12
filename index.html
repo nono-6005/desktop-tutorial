@@ -580,7 +580,7 @@
             <h1>メモ</h1>
             <p class="header-count" id="memoCount">0 件</p>
           </div>
-          <button id="installBtn" class="install-btn">🏠 ホーム画面に追加</button>
+          <button id="installBtn" class="install-btn">🔖 ブックマーク</button>
         </div>
       </div>
       <div class="content">
@@ -615,10 +615,10 @@
     <!-- トースト通知 -->
     <div class="toast" id="toast"></div>
 
-    <!-- ホーム画面追加ガイド -->
+    <!-- ブックマーク追加ガイド -->
     <div class="guide-overlay" id="guideOverlay">
       <div class="guide-modal">
-        <h2 id="guideTitle">ホーム画面に追加</h2>
+        <h2 id="guideTitle">ブックマークに追加</h2>
         <ol id="guideSteps"></ol>
         <button class="guide-close" id="guideClose">閉じる</button>
       </div>
@@ -659,100 +659,17 @@
       console.log('Display Mode:', displayMode);
       console.log('Standalone:', isStandalone);
       console.log('SW Support:', 'serviceWorker' in navigator);
-      console.log('beforeinstallprompt Support:', true);
     })();
 
-    // ===== PWA インストール =====
-    // SW の登録＆事前キャッシュが完了してからでないと、インストール直後に
-    // オフラインで開いた場合に一部アセットが読み込めない可能性があるため、
-    // 登録完了を待ってから "使える状態" として扱う。
-    let swReady = Promise.resolve();
+    // ===== Service Worker（オフライン対応） =====
     if ('serviceWorker' in navigator) {
-      swReady = navigator.serviceWorker.register('./sw.js').then((reg) => {
-        console.log('✓ Service Worker registered');
-        // 既存の SW がなくアクティブになるまで待機（初回インストール時）
-        if (reg.installing) {
-          return new Promise((resolve) => {
-            reg.installing.addEventListener('statechange', function () {
-              if (this.state === 'activated') {
-                console.log('✓ Service Worker activated');
-                resolve();
-              }
-            });
-          });
-        }
-      }).catch(() => {
-        console.log('✗ Service Worker registration failed');
+      navigator.serviceWorker.register('./sw.js').catch(() => {
+        console.log('Service Worker registration failed');
       });
     }
 
-    // install プロンプト処理
-    let deferredPrompt;
+    // ===== ブックマーク案内 =====
     const installBtn = document.getElementById('installBtn');
-    let beforeInstallPromptFired = false;
-
-    // PWA installability チェック
-    (async function checkInstallability() {
-      const checks = {
-        'HTTPS/localhost': window.location.protocol === 'https:' || window.location.hostname === 'localhost',
-        'manifest.json link': document.querySelector('link[rel="manifest"]') !== null,
-        'Service Worker': 'serviceWorker' in navigator,
-        'iOS (Safari)': /iphone|ipad/.test(navigator.userAgent.toLowerCase()),
-        'Android': /android/.test(navigator.userAgent.toLowerCase()),
-      };
-
-      console.log('=== PWA Installability Check ===');
-      Object.entries(checks).forEach(([key, value]) => {
-        console.log(`${value ? '✓' : '✗'} ${key}`);
-      });
-
-      // manifest.json の内容を検証
-      try {
-        const manifestLink = document.querySelector('link[rel="manifest"]');
-        if (manifestLink) {
-          const response = await fetch(manifestLink.href);
-          const manifest = await response.json();
-          console.log('✓ manifest.json loaded:', {
-            name: manifest.name,
-            display: manifest.display,
-            icons: manifest.icons?.length || 0,
-            startUrl: manifest.start_url,
-          });
-        }
-      } catch (err) {
-        console.log('✗ manifest.json error:', err.message);
-      }
-
-      // beforeinstallprompt は一定時間で発火しなければ発火しない
-      setTimeout(() => {
-        if (!beforeInstallPromptFired) {
-          const isSafari = /iphone|ipad/.test(navigator.userAgent.toLowerCase());
-          const isAndroid = /android/.test(navigator.userAgent.toLowerCase());
-
-          if (isSafari) {
-            console.log('ℹ iOS Safari: Use "Share" → "Add to Home Screen"');
-          } else if (isAndroid) {
-            console.log('✗ beforeinstallprompt not fired (may require app store approval or other conditions)');
-            console.log('   Possible reasons:');
-            console.log('   - User already installed');
-            console.log('   - Browser/device does not support PWA');
-            console.log('   - PWA installability criteria not fully met');
-          } else {
-            console.log('ℹ beforeinstallprompt not available on this device/browser');
-          }
-        }
-      }, 3000);
-    })();
-
-    window.addEventListener('beforeinstallprompt', (e) => {
-      e.preventDefault();
-      beforeInstallPromptFired = true;
-      deferredPrompt = e;
-      console.log('✓ beforeinstallprompt fired - install button enabled');
-      installBtn.classList.remove('hidden');
-    });
-
-    // ホーム画面追加ガイド（beforeinstallprompt が使えない環境向け）
     const guideOverlay = document.getElementById('guideOverlay');
     const guideSteps = document.getElementById('guideSteps');
     const guideClose = document.getElementById('guideClose');
@@ -762,21 +679,26 @@
       if (isIOS) {
         steps = [
           '画面下（または上部）の「共有」アイコン（□に↑）をタップ',
-          'メニューを下にスクロールして「ホーム画面に追加」をタップ',
-          '右上の「追加」をタップして完了',
+          '「ブックマークを追加」をタップ',
+          '「保存」をタップして完了',
+        ];
+      } else if (isAndroid) {
+        steps = [
+          'アドレスバー右側の ☆（星マーク）をタップ',
+          '見当たらない場合はブラウザメニュー「⋮」→「ブックマーク」→「追加」',
+          '保存先を確認して「保存」をタップ',
         ];
       } else {
-        // Android（タブレット含む）
         steps = [
-          '画面右上のブラウザメニュー「⋮」をタップ',
-          '「アプリをインストール」または「ホーム画面に追加」をタップ',
-          '表示された内容を確認して「追加」または「インストール」をタップ',
-          'メニューに見当たらない場合は、この端末の Chrome が対応していない可能性があります',
+          'キーボードの Ctrl + D（Mac は Cmd + D）を押す',
+          '保存先フォルダを確認して「完了」をクリック',
         ];
       }
       guideSteps.innerHTML = steps.map(s => `<li>${s}</li>`).join('');
       guideOverlay.classList.add('show');
     }
+
+    installBtn.addEventListener('click', showGuide);
 
     guideClose.addEventListener('click', () => {
       guideOverlay.classList.remove('show');
@@ -784,51 +706,6 @@
     guideOverlay.addEventListener('click', (e) => {
       if (e.target === guideOverlay) guideOverlay.classList.remove('show');
     });
-
-    installBtn.addEventListener('click', async () => {
-      if (!deferredPrompt) {
-        console.log('✗ deferredPrompt not available - showing manual guide');
-        showGuide();
-        return;
-      }
-
-      try {
-        console.log('→ Install prompt dialog showing...');
-        installBtn.classList.add('hidden');
-
-        // オフラインでもすぐ使えるよう、SW の事前キャッシュ完了を待ってから
-        // インストールダイアログを出す（通常は一瞬で完了済み）
-        await swReady;
-
-        deferredPrompt.prompt();
-        const { outcome } = await deferredPrompt.userChoice;
-        deferredPrompt = null;
-
-        if (outcome === 'accepted') {
-          console.log('✓ Install accepted');
-          showToast('インストールしました。ホーム画面から開くとすぐに使えます。', 5000);
-        } else {
-          console.log('✗ Install cancelled by user');
-          installBtn.classList.remove('hidden');
-        }
-      } catch (err) {
-        console.log('✗ Install error:', err.message);
-        showToast('インストールに失敗しました。ブラウザを確認してください。', 4000);
-        installBtn.classList.remove('hidden');
-      }
-    });
-
-    window.addEventListener('appinstalled', () => {
-      console.log('✓ App installed from PWA prompt');
-      installBtn.classList.add('hidden');
-      deferredPrompt = null;
-    });
-
-    // すでにインストール済み（スタンドアロン起動）の場合はボタンを出さない
-    if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone) {
-      console.log('✓ Running as standalone app');
-      installBtn.classList.add('hidden');
-    }
 
     // ===== IndexedDB 管理 =====
     let db = null;
