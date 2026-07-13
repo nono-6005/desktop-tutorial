@@ -270,6 +270,61 @@
       cursor: not-allowed;
     }
 
+    /* 描画ギャラリー */
+    .gallery-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+      gap: 0.6rem;
+      margin-bottom: 1rem;
+    }
+
+    .gallery-item {
+      position: relative;
+      border: 1px solid #444;
+      border-radius: 8px;
+      overflow: hidden;
+      cursor: pointer;
+      background: #111;
+      aspect-ratio: 1;
+    }
+
+    .gallery-item img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .gallery-item .g-name {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.6);
+      color: #f5e6d3;
+      font-size: 0.65rem;
+      padding: 0.2rem 0.35rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .gallery-item .g-del {
+      position: absolute;
+      top: 3px;
+      right: 3px;
+      width: 1.4rem;
+      height: 1.4rem;
+      border-radius: 50%;
+      background: rgba(0, 0, 0, 0.7);
+      color: #e74c3c;
+      border: none;
+      font-size: 0.75rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
     .guide-modal ol {
       list-style: none;
       counter-reset: step;
@@ -832,12 +887,27 @@
         <button class="draw-btn" id="drawEraser">🧽 消しゴム</button>
         <button class="draw-btn" id="drawUpload">🖼 画像</button>
         <button class="draw-btn" id="drawUndo">↶ 戻す</button>
-        <button class="draw-btn" id="drawClear">クリア</button>
+        <button class="draw-btn" id="drawClear">🆕 クリア</button>
+        <button class="draw-btn" id="drawSave">💾 保存</button>
+        <button class="draw-btn" id="drawGallery">📁 一覧</button>
         <button class="draw-btn" id="drawDownload">📥 PNG</button>
         <input type="file" id="drawImageInput" accept="image/*" style="display: none;">
       </div>
       <div class="draw-canvas-holder">
         <canvas id="drawCanvas"></canvas>
+      </div>
+    </div>
+
+    <!-- ===== 描画ギャラリー ===== -->
+    <div class="overlay" id="galleryOverlay">
+      <div class="modal">
+        <h2>📁 保存した描画</h2>
+        <p class="desc">タップで読み込み。この端末（ブラウザ内）に保存されます。</p>
+        <div class="gallery-grid" id="galleryGrid"></div>
+        <div class="empty-state" id="galleryEmpty" style="display: none; height: auto; padding: 1.5rem 0;">
+          <p>保存された描画はまだありません</p>
+        </div>
+        <button class="modal-btn secondary" id="galleryClose">閉じる</button>
       </div>
     </div>
 
@@ -965,7 +1035,7 @@
     // ストレージ層（IndexedDB / File System Access API 切り替え）
     // =========================================================
     const IDB_NAME = 'MemoApp';
-    const IDB_VERSION = 2;
+    const IDB_VERSION = 3;
     let idb = null;
 
     function openIDB() {
@@ -981,6 +1051,10 @@
           // フォルダハンドル永続化用（FileSystemDirectoryHandle は IDB に保存可能）
           if (!database.objectStoreNames.contains('settings')) {
             database.createObjectStore('settings', { keyPath: 'key' });
+          }
+          // 描画タブで保存する作品（常にこのブラウザ内保存）
+          if (!database.objectStoreNames.contains('drawings')) {
+            database.createObjectStore('drawings', { keyPath: 'id' });
           }
         };
       });
@@ -1425,10 +1499,14 @@
 
     // --- 描画タブのパッド ---
     const drawPad = createSketchpad($('drawCanvas'), $('drawColor'), $('drawBrush'), $('drawEraser'));
+    let currentDrawingId = null;
 
     $('drawUndo').addEventListener('click', () => drawPad.undo());
     $('drawClear').addEventListener('click', () => {
-      if (confirm('描いた内容を消去しますか？（背景画像は残ります）')) drawPad.clear();
+      if (confirm('描いた内容を消去しますか？（背景画像は残ります）')) {
+        drawPad.clear();
+        currentDrawingId = null;
+      }
     });
     $('drawDownload').addEventListener('click', () => {
       const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
@@ -1446,6 +1524,107 @@
 
     window.addEventListener('resize', () => {
       if (currentTab === 'draw') drawPad.resize();
+    });
+
+    // ===== 描画の保存・一覧（常にこのブラウザの IndexedDB に保存） =====
+    async function saveDrawing() {
+      if (!drawPad.hasContent()) {
+        showToast('何か描いてから保存してください');
+        return;
+      }
+      const now = Date.now();
+      const id = currentDrawingId || now;
+      const existing = currentDrawingId ? await idbGet('drawings', currentDrawingId) : null;
+      const entry = {
+        id,
+        name: existing ? existing.name : new Date(now).toLocaleString('ja-JP'),
+        dataUrl: drawPad.toDataURL(),
+        createdAt: existing ? existing.createdAt : now,
+        updatedAt: now,
+      };
+      await idbPut('drawings', entry);
+      currentDrawingId = id;
+      showToast('描画を保存しました');
+    }
+
+    async function renderGallery() {
+      const grid = $('galleryGrid');
+      const empty = $('galleryEmpty');
+      let drawings;
+      try {
+        drawings = await idbGetAll('drawings');
+      } catch (e) {
+        drawings = [];
+      }
+      drawings.sort((a, b) => b.updatedAt - a.updatedAt);
+
+      if (drawings.length === 0) {
+        grid.innerHTML = '';
+        empty.style.display = 'block';
+        return;
+      }
+      empty.style.display = 'none';
+      grid.innerHTML = drawings.map(d => `
+        <div class="gallery-item" data-id="${d.id}">
+          <img src="${d.dataUrl}" alt="${escapeHtml(d.name)}">
+          <div class="g-name">${escapeHtml(d.name)}</div>
+          <button class="g-del" data-id="${d.id}">✕</button>
+        </div>
+      `).join('');
+
+      grid.querySelectorAll('.gallery-item').forEach(item => {
+        item.addEventListener('click', (e) => {
+          if (e.target.classList.contains('g-del')) return;
+          loadDrawing(parseInt(item.dataset.id));
+        });
+      });
+      grid.querySelectorAll('.g-del').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          if (!confirm('この描画を削除しますか？')) return;
+          const id = parseInt(btn.dataset.id);
+          await idbDelete('drawings', id);
+          if (currentDrawingId === id) currentDrawingId = null;
+          renderGallery();
+        });
+      });
+    }
+
+    async function loadDrawing(id) {
+      const entry = await idbGet('drawings', id);
+      if (!entry) return;
+      currentDrawingId = id;
+      drawPad.history = [];
+      drawPad.backgroundImage = null;
+      $('galleryOverlay').classList.remove('show');
+      switchTab('draw');
+      requestAnimationFrame(() => {
+        drawPad.resize();
+        const img = new Image();
+        img.onload = () => {
+          const ctx = $('drawCanvas').getContext('2d');
+          const rect = $('drawCanvas').getBoundingClientRect();
+          ctx.save();
+          ctx.globalCompositeOperation = 'source-over';
+          ctx.fillStyle = '#1a1a1a';
+          ctx.fillRect(0, 0, rect.width, rect.height);
+          ctx.drawImage(img, 0, 0, rect.width, rect.height);
+          ctx.restore();
+          drawPad.history.push(entry.dataUrl);
+        };
+        img.src = entry.dataUrl;
+      });
+      showToast('描画を読み込みました');
+    }
+
+    $('drawSave').addEventListener('click', saveDrawing);
+    $('drawGallery').addEventListener('click', () => {
+      $('galleryOverlay').classList.add('show');
+      renderGallery();
+    });
+    $('galleryClose').addEventListener('click', () => $('galleryOverlay').classList.remove('show'));
+    $('galleryOverlay').addEventListener('click', (e) => {
+      if (e.target === $('galleryOverlay')) $('galleryOverlay').classList.remove('show');
     });
 
     // --- スケッチモーダルのパッド ---
