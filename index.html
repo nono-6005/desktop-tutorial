@@ -1280,16 +1280,34 @@
       async getAll() {
         if (this.mode === 'fs') {
           const memos = [];
-          for await (const entry of this.dirHandle.values()) {
-            if (entry.kind !== 'file' || !entry.name.endsWith('.md')) continue;
-            const idMatch = entry.name.match(/^memo-(\d+)\.md$/);
-            if (!idMatch) continue;
-            try {
-              const file = await entry.getFile();
-              const text = await file.text();
-              memos.push(markdownToMemo(text, parseInt(idMatch[1])));
-            } catch (e) { /* 読めないファイルはスキップ */ }
+          try {
+            for await (const entry of this.dirHandle.values()) {
+              if (entry.kind !== 'file' || !entry.name.endsWith('.md')) continue;
+              const idMatch = entry.name.match(/^memo-(\d+)\.md$/);
+              if (!idMatch) continue;
+              try {
+                const file = await entry.getFile();
+                const text = await file.text();
+                memos.push(markdownToMemo(text, parseInt(idMatch[1])));
+              } catch (e) { /* 読めないファイルはスキップ */ }
+            }
+          } catch (e) {
+            // フォルダ自体が読めない場合はブラウザ内退避分だけでも表示する
+            console.log('folder read failed:', e.message);
           }
+          // フォルダに書けなかった時の退避分（ブラウザ内）もマージして表示。
+          // 同じ id が両方にある場合は更新が新しい方を採用。
+          try {
+            const local = await idbGetAll('memos');
+            for (const m of local) {
+              const idx = memos.findIndex(x => x.id === m.id);
+              if (idx < 0) {
+                memos.push(m);
+              } else if (m.updatedAt > memos[idx].updatedAt) {
+                memos[idx] = m;
+              }
+            }
+          } catch (e) { /* noop */ }
           return memos.sort((a, b) => b.updatedAt - a.updatedAt);
         }
         const all = await idbGetAll('memos');
@@ -1298,11 +1316,22 @@
 
       async save(memo) {
         if (this.mode === 'fs') {
-          const handle = await this.dirHandle.getFileHandle(`memo-${memo.id}.md`, { create: true });
-          const writable = await handle.createWritable();
-          await writable.write(memoToMarkdown(memo));
-          await writable.close();
-          return;
+          try {
+            const handle = await this.dirHandle.getFileHandle(`memo-${memo.id}.md`, { create: true });
+            const writable = await handle.createWritable();
+            await writable.write(memoToMarkdown(memo));
+            await writable.close();
+            // フォルダ保存に成功したら過去の退避分は消しておく（二重管理防止）
+            await idbDelete('memos', memo.id).catch(() => {});
+            return;
+          } catch (e) {
+            // フォルダに書けない端末・状態ではブラウザ内へ自動退避。
+            // getAll がマージ表示するので、ユーザーからはそのまま保存されたように見える。
+            console.log('folder write failed, falling back to IndexedDB:', e.message);
+            await idbPut('memos', memo);
+            showToast('フォルダに書き込めないため、ブラウザ内に保存しました');
+            return;
+          }
         }
         await idbPut('memos', memo);
       },
@@ -1310,6 +1339,8 @@
       async remove(memo) {
         if (this.mode === 'fs') {
           try { await this.dirHandle.removeEntry(`memo-${memo.id}.md`); } catch (e) {}
+          // 退避分も削除
+          await idbDelete('memos', memo.id).catch(() => {});
           return;
         }
         await idbDelete('memos', memo.id);
