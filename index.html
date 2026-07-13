@@ -934,6 +934,19 @@
       </div>
     </div>
 
+    <!-- ===== 保存繰り返し失敗時の復旧案内 ===== -->
+    <div class="overlay" id="saveFailOverlay">
+      <div class="modal">
+        <h2>⚠️ 保存できません</h2>
+        <p class="desc">このブラウザ内保存（IndexedDB）が繰り返し失敗しています。端末側のストレージが不調になっている可能性があります。<br><br>入力内容は消えていません。以下のいずれかをお試しください。</p>
+        <button class="modal-btn" id="saveFailToFolder">📂 フォルダ保存に切り替える</button>
+        <button class="modal-btn secondary" id="saveFailDownload">📥 今すぐ .md をダウンロード</button>
+        <button class="modal-btn secondary" id="saveFailRetry">もう一度「保存」を試す</button>
+        <p class="desc" style="margin-top: 1rem; margin-bottom: 0;">直らない場合：ブラウザの設定 →サイトの設定 → このサイト →「ストレージデータを削除」で直ることがあります（保存済みメモは消えます）。</p>
+        <button class="modal-btn secondary" id="saveFailClose">閉じる</button>
+      </div>
+    </div>
+
     <!-- ===== フォルダ再接続 ===== -->
     <div class="overlay" id="reconnectOverlay">
       <div class="modal">
@@ -1307,6 +1320,30 @@
 
     $('optIdb').addEventListener('click', chooseIdb);
     $('optFs').addEventListener('click', chooseFs);
+
+    // ===== 保存繰り返し失敗時の復旧モーダル =====
+    $('saveFailToFolder').addEventListener('click', async () => {
+      if (!supportsFS) {
+        showToast('このブラウザはフォルダ保存に対応していません');
+        return;
+      }
+      await chooseFs();
+      if (storage.mode === 'fs') {
+        $('saveFailOverlay').classList.remove('show');
+        saveFailStreak = 0;
+        await saveCurrentMemo();
+      }
+    });
+    $('saveFailDownload').addEventListener('click', () => {
+      downloadCurrentMemo();
+    });
+    $('saveFailRetry').addEventListener('click', () => {
+      $('saveFailOverlay').classList.remove('show');
+      saveCurrentMemo();
+    });
+    $('saveFailClose').addEventListener('click', () => {
+      $('saveFailOverlay').classList.remove('show');
+    });
     $('reconnectBtn').addEventListener('click', async () => {
       if (storage.dirHandle && await verifyFsPermission(storage.dirHandle, true)) {
         $('reconnectOverlay').classList.remove('show');
@@ -1845,6 +1882,8 @@
       localStorage.removeItem(DRAFT_KEY);
     }
 
+    let saveFailStreak = 0;
+
     async function saveCurrentMemo() {
       if (!currentMemo) return;
       currentMemo.title = $('titleInput').value || '新規メモ';
@@ -1855,9 +1894,15 @@
       } catch (e) {
         // 保存先の不調でも内容を失わないよう一時退避し、画面には留まる
         backupDraft(currentMemo);
-        showToast('保存できませんでした（内容は保持されています）。もう一度「保存」を押してください', 4500);
+        saveFailStreak++;
+        if (saveFailStreak >= 2 && storage.mode === 'idb') {
+          $('saveFailOverlay').classList.add('show');
+        } else {
+          showToast('保存できませんでした（内容は保持されています）。もう一度「保存」を押してください', 4500);
+        }
         return;
       }
+      saveFailStreak = 0;
       clearDraftBackup();
       showListView();
     }
