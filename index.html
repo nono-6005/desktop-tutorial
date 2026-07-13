@@ -1068,17 +1068,29 @@
       return !!err && typeof err.message === 'string' && err.message.includes('state had changed since it was read from disk');
     }
 
+    function wait(ms) {
+      return new Promise((resolve) => setTimeout(resolve, ms));
+    }
+
     async function withIdbRetry(run) {
-      try {
-        return await run();
-      } catch (err) {
-        if (!isStaleConnectionError(err)) throw err;
+      const delays = [0, 150, 400, 900]; // 最大4回試行（初回＋3リトライ）
+      let lastErr = null;
+      for (let i = 0; i < delays.length; i++) {
+        if (delays[i] > 0) await wait(delays[i]);
         try {
-          if (idb) idb.close();
-        } catch (e) { /* noop */ }
-        await openIDB();
-        return await run();
+          if (i > 0) {
+            try {
+              if (idb) idb.close();
+            } catch (e) { /* noop */ }
+            await openIDB();
+          }
+          return await run();
+        } catch (err) {
+          lastErr = err;
+          if (!isStaleConnectionError(err)) throw err;
+        }
       }
+      throw lastErr;
     }
 
     function idbGet(storeName, key) {
@@ -1821,6 +1833,18 @@
       showEditorView();
     }
 
+    const DRAFT_KEY = 'unsavedDraft';
+
+    function backupDraft(memo) {
+      try {
+        localStorage.setItem(DRAFT_KEY, JSON.stringify(memo));
+      } catch (e) { /* 容量不足等は無視（保存できないだけで内容はまだ画面上にある） */ }
+    }
+
+    function clearDraftBackup() {
+      localStorage.removeItem(DRAFT_KEY);
+    }
+
     async function saveCurrentMemo() {
       if (!currentMemo) return;
       currentMemo.title = $('titleInput').value || '新規メモ';
@@ -1829,9 +1853,12 @@
       try {
         await storage.save(currentMemo);
       } catch (e) {
-        showToast('保存に失敗しました: ' + e.message);
+        // 保存先の不調でも内容を失わないよう一時退避し、画面には留まる
+        backupDraft(currentMemo);
+        showToast('保存できませんでした（内容は保持されています）。もう一度「保存」を押してください', 4500);
         return;
       }
+      clearDraftBackup();
       showListView();
     }
 
@@ -1906,12 +1933,33 @@
       if (e.target === $('guideOverlay')) $('guideOverlay').classList.remove('show');
     });
 
+    function restoreDraftIfAny() {
+      let raw;
+      try {
+        raw = localStorage.getItem(DRAFT_KEY);
+      } catch (e) { return false; }
+      if (!raw) return false;
+      let memo;
+      try {
+        memo = JSON.parse(raw);
+      } catch (e) { clearDraftBackup(); return false; }
+      currentMemo = memo;
+      $('titleInput').value = memo.title;
+      $('contentInput').value = memo.content;
+      updateEditorMeta();
+      showEditorView();
+      showToast('前回保存できなかった内容を復元しました。もう一度「保存」を押してください', 4500);
+      return true;
+    }
+
     // ===== 初期化 =====
     (async () => {
       try {
         const ready = await initStorage();
         const params = new URLSearchParams(window.location.search);
-        if (ready && params.get('action') === 'new') {
+        if (restoreDraftIfAny()) {
+          // 復元した下書きがあれば編集画面のまま
+        } else if (ready && params.get('action') === 'new') {
           await createNewMemo();
         } else {
           await renderList();
