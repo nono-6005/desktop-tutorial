@@ -1,4 +1,4 @@
-const CACHE_NAME = 'memo-app-v15';
+const CACHE_NAME = 'memo-app-v16';
 const ASSETS_TO_CACHE = [
   './index.html',
   './env-check.html',
@@ -7,7 +7,9 @@ const ASSETS_TO_CACHE = [
   './icons/icon-192.png',
   './icons/icon-512.png',
   './icons/icon-192-maskable.png',
-  './icons/icon-plus-192.png'
+  './icons/icon-plus-192.png',
+  './pdfjs/pdf.min.js',
+  './pdfjs/pdf.worker.min.js'
 ];
 
 // インストール

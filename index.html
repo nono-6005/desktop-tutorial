@@ -945,7 +945,16 @@
         <button class="draw-btn" id="drawSave">💾 保存</button>
         <button class="draw-btn" id="drawGallery">📁 一覧</button>
         <button class="draw-btn" id="drawDownload">📥 PNG</button>
+        <button class="draw-btn" id="drawPdf">📄 PDF</button>
         <input type="file" id="drawImageInput" accept="image/*" style="display: none;">
+        <input type="file" id="drawPdfInput" accept="application/pdf,.pdf" style="display: none;">
+      </div>
+      <div class="draw-toolbar" id="pdfNav" style="display: none;">
+        <button class="draw-btn" id="pdfPrev">◀ 前</button>
+        <span id="pdfPageInfo" style="align-self: center; color: #f5e6d3; font-size: 0.85rem; padding: 0 0.3rem;">1 / 1</span>
+        <button class="draw-btn" id="pdfNext">次 ▶</button>
+        <button class="draw-btn" id="pdfExport">📥 PDF保存</button>
+        <button class="draw-btn" id="pdfClose">✕ 閉じる</button>
       </div>
       <div class="draw-canvas-holder">
         <canvas id="drawCanvas"></canvas>
@@ -1645,6 +1654,7 @@
       if (confirm('描いた内容を消去しますか？（背景画像は残ります）')) {
         drawPad.clear();
         currentDrawingId = null;
+        if (pdfState) delete pdfState.snapshots[pdfState.current];
       }
     });
     $('drawDownload').addEventListener('click', () => {
@@ -1659,6 +1669,240 @@
       const file = e.target.files[0];
       if (file) drawPad.loadImage(file);
       e.target.value = '';
+    });
+
+    // ===== PDF への書き込み =====
+    // PDF を開いてページを背景に表示し、既存のペン・消しゴムで書き込める。
+    // ページごとの書き込みは snapshots に保持し、「PDF保存」で全ページを
+    // 書き込み込みの PDF として書き出す。レンダリングは同梱の PDF.js（./pdfjs/）を使用。
+    let pdfState = null; // { doc, pageCount, current, snapshots: { pageNum: { dataUrl, crop } } }
+    let pdfjsLoading = null;
+
+    function loadPdfJs() {
+      if (window.pdfjsLib) return Promise.resolve();
+      if (pdfjsLoading) return pdfjsLoading;
+      pdfjsLoading = new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = './pdfjs/pdf.min.js';
+        s.onload = () => {
+          window.pdfjsLib.GlobalWorkerOptions.workerSrc = './pdfjs/pdf.worker.min.js';
+          resolve();
+        };
+        s.onerror = () => {
+          pdfjsLoading = null;
+          reject(new Error('PDF 機能の読み込みに失敗しました'));
+        };
+        document.head.appendChild(s);
+      });
+      return pdfjsLoading;
+    }
+
+    function loadImg(src) {
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = reject;
+        img.src = src;
+      });
+    }
+
+    async function renderPdfPageToCanvas(pageNum, scale) {
+      const page = await pdfState.doc.getPage(pageNum);
+      const viewport = page.getViewport({ scale });
+      const c = document.createElement('canvas');
+      c.width = viewport.width;
+      c.height = viewport.height;
+      await page.render({ canvasContext: c.getContext('2d'), viewport }).promise;
+      return c;
+    }
+
+    // 現在ページの書き込みをスナップショット保存（ページ切替・書き出し前に呼ぶ）
+    function snapshotCurrentPdfPage() {
+      if (!pdfState || drawPad.history.length === 0) return;
+      const canvas = $('drawCanvas');
+      const rect = canvas.getBoundingClientRect();
+      const img = drawPad.backgroundImage;
+      if (!img || rect.width === 0) return;
+      // redrawBackground と同じフィット計算で、キャンバス内のページ描画領域を求める
+      const canvasRatio = rect.width / rect.height;
+      const imgRatio = img.width / img.height;
+      let dw, dh, ox, oy;
+      if (imgRatio > canvasRatio) {
+        dw = rect.width; dh = dw / imgRatio; ox = 0; oy = (rect.height - dh) / 2;
+      } else {
+        dh = rect.height; dw = dh * imgRatio; ox = (rect.width - dw) / 2; oy = 0;
+      }
+      const dpr = canvas.width / rect.width;
+      pdfState.snapshots[pdfState.current] = {
+        dataUrl: canvas.toDataURL('image/png'),
+        crop: { x: ox * dpr, y: oy * dpr, w: dw * dpr, h: dh * dpr },
+      };
+    }
+
+    async function showPdfPage(pageNum) {
+      const pageCanvas = await renderPdfPageToCanvas(pageNum, 2);
+      const img = await loadImg(pageCanvas.toDataURL('image/jpeg', 0.92));
+      pdfState.current = pageNum;
+      drawPad.backgroundImage = img;
+      drawPad.history = [];
+      drawPad.redrawBackground();
+      const snap = pdfState.snapshots[pageNum];
+      if (snap) {
+        const rimg = await loadImg(snap.dataUrl);
+        const canvas = $('drawCanvas');
+        const rect = canvas.getBoundingClientRect();
+        const ctx = canvas.getContext('2d');
+        ctx.save();
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.drawImage(rimg, 0, 0, rect.width, rect.height);
+        ctx.restore();
+        drawPad.history.push(snap.dataUrl);
+      }
+      $('pdfPageInfo').textContent = `${pageNum} / ${pdfState.pageCount}`;
+      $('pdfPrev').disabled = pageNum <= 1;
+      $('pdfNext').disabled = pageNum >= pdfState.pageCount;
+    }
+
+    function closePdf() {
+      pdfState = null;
+      $('pdfNav').style.display = 'none';
+      drawPad.backgroundImage = null;
+      drawPad.clear();
+    }
+
+    $('drawPdf').addEventListener('click', () => $('drawPdfInput').click());
+    $('drawPdfInput').addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      e.target.value = '';
+      if (!file) return;
+      try {
+        showToast('PDF を読み込んでいます...');
+        await loadPdfJs();
+        const buf = await file.arrayBuffer();
+        const doc = await window.pdfjsLib.getDocument({ data: buf }).promise;
+        pdfState = { doc, pageCount: doc.numPages, current: 1, snapshots: {} };
+        currentDrawingId = null;
+        $('pdfNav').style.display = 'flex';
+        drawPad.resize();
+        await showPdfPage(1);
+        showToast(`PDF を開きました（全 ${doc.numPages} ページ）。ペンで書き込めます`);
+      } catch (err) {
+        console.log('PDF open failed:', err);
+        showToast(err && err.message ? err.message : 'PDF を開けませんでした');
+      }
+    });
+
+    $('pdfPrev').addEventListener('click', async () => {
+      if (!pdfState || pdfState.current <= 1) return;
+      snapshotCurrentPdfPage();
+      await showPdfPage(pdfState.current - 1);
+    });
+
+    $('pdfNext').addEventListener('click', async () => {
+      if (!pdfState || pdfState.current >= pdfState.pageCount) return;
+      snapshotCurrentPdfPage();
+      await showPdfPage(pdfState.current + 1);
+    });
+
+    $('pdfClose').addEventListener('click', () => {
+      if (!pdfState) return;
+      if (!confirm('PDF を閉じますか？（書き出していない書き込みは消えます）')) return;
+      closePdf();
+    });
+
+    // --- 書き込み済み PDF の書き出し（JPEG ページを埋め込んだ PDF を自前生成） ---
+    function dataUrlToBytes(dataUrl) {
+      const bin = atob(dataUrl.split(',')[1]);
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      return bytes;
+    }
+
+    function buildPdfFromJpegs(pages) {
+      // pages: [{ dataUrl(jpeg), pxWidth, pxHeight, ptWidth, ptHeight }]
+      const enc = new TextEncoder();
+      const chunks = [];
+      let pos = 0;
+      const offsets = {};
+      const push = (d) => {
+        const b = typeof d === 'string' ? enc.encode(d) : d;
+        chunks.push(b);
+        pos += b.length;
+      };
+      push('%PDF-1.4\n');
+      offsets[1] = pos;
+      push('1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n');
+      const kids = pages.map((_, k) => `${3 + k * 3} 0 R`).join(' ');
+      offsets[2] = pos;
+      push(`2 0 obj\n<< /Type /Pages /Kids [${kids}] /Count ${pages.length} >>\nendobj\n`);
+      pages.forEach((p, k) => {
+        const pageN = 3 + k * 3;
+        const imgN = pageN + 1;
+        const contN = pageN + 2;
+        offsets[pageN] = pos;
+        push(`${pageN} 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${p.ptWidth} ${p.ptHeight}] /Resources << /XObject << /Im0 ${imgN} 0 R >> >> /Contents ${contN} 0 R >>\nendobj\n`);
+        const imgBytes = dataUrlToBytes(p.dataUrl);
+        offsets[imgN] = pos;
+        push(`${imgN} 0 obj\n<< /Type /XObject /Subtype /Image /Width ${p.pxWidth} /Height ${p.pxHeight} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${imgBytes.length} >>\nstream\n`);
+        push(imgBytes);
+        push('\nendstream\nendobj\n');
+        const content = `q ${p.ptWidth} 0 0 ${p.ptHeight} 0 0 cm /Im0 Do Q`;
+        offsets[contN] = pos;
+        push(`${contN} 0 obj\n<< /Length ${content.length} >>\nstream\n${content}\nendstream\nendobj\n`);
+      });
+      const objCount = 2 + pages.length * 3;
+      const xrefPos = pos;
+      let xref = `xref\n0 ${objCount + 1}\n0000000000 65535 f \n`;
+      for (let n = 1; n <= objCount; n++) {
+        xref += String(offsets[n]).padStart(10, '0') + ' 00000 n \n';
+      }
+      push(xref);
+      push(`trailer\n<< /Size ${objCount + 1} /Root 1 0 R >>\nstartxref\n${xrefPos}\n%%EOF`);
+      return new Blob(chunks, { type: 'application/pdf' });
+    }
+
+    $('pdfExport').addEventListener('click', async () => {
+      if (!pdfState) return;
+      snapshotCurrentPdfPage();
+      showToast('PDF を書き出しています...');
+      try {
+        const pages = [];
+        for (let n = 1; n <= pdfState.pageCount; n++) {
+          const snap = pdfState.snapshots[n];
+          let c;
+          if (snap) {
+            // 書き込み済みページ：スナップショットからページ領域だけ切り出す
+            const img = await loadImg(snap.dataUrl);
+            c = document.createElement('canvas');
+            c.width = Math.max(1, Math.round(snap.crop.w));
+            c.height = Math.max(1, Math.round(snap.crop.h));
+            const cx = c.getContext('2d');
+            cx.drawImage(img, snap.crop.x, snap.crop.y, snap.crop.w, snap.crop.h, 0, 0, c.width, c.height);
+          } else {
+            // 未編集ページ：元 PDF から高解像度で再レンダリング
+            c = await renderPdfPageToCanvas(n, 2);
+          }
+          pages.push({
+            dataUrl: c.toDataURL('image/jpeg', 0.9),
+            pxWidth: c.width,
+            pxHeight: c.height,
+            ptWidth: Math.round(c.width / 2),
+            ptHeight: Math.round(c.height / 2),
+          });
+        }
+        const blob = buildPdfFromJpegs(pages);
+        const url = URL.createObjectURL(blob);
+        const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `pdf-memo-${timestamp}.pdf`;
+        link.click();
+        setTimeout(() => URL.revokeObjectURL(url), 10000);
+        showToast('書き込み済み PDF をダウンロードしました');
+      } catch (err) {
+        console.log('PDF export failed:', err);
+        showToast('PDF の書き出しに失敗しました');
+      }
     });
 
     window.addEventListener('resize', () => {
@@ -1732,6 +1976,8 @@
     async function loadDrawing(id) {
       const entry = await idbGet('drawings', id);
       if (!entry) return;
+      pdfState = null;
+      $('pdfNav').style.display = 'none';
       currentDrawingId = id;
       drawPad.history = [];
       drawPad.backgroundImage = null;
