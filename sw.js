@@ -1,4 +1,4 @@
-const CACHE_NAME = 'memo-app-v6';
+const CACHE_NAME = 'memo-app-v7';
 const ASSETS_TO_CACHE = [
   './index.html',
   './env-check.html',
