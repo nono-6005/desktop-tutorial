@@ -971,43 +971,15 @@
     <!-- トースト -->
     <div class="toast" id="toast"></div>
 
-    <!-- ===== 保存先選択ウィザード ===== -->
-    <div class="overlay" id="setupOverlay">
-      <div class="modal">
-        <h2>データの保存先を選択</h2>
-        <p class="desc">メモの保存先を選んでください。あとから設定（⚙️）で変更できます。</p>
-        <button class="storage-option" id="optIdb">
-          <div class="so-title">📱 このブラウザ内</div>
-          <div class="so-desc">ブラウザのローカルストレージ（IndexedDB）に保存。設定不要ですぐ使えます。この端末・このブラウザ専用。</div>
-        </button>
-        <button class="storage-option" id="optFs">
-          <div class="so-title">📂 フォルダを選んで保存</div>
-          <div class="so-desc">端末内のフォルダ（SD カード・USB ドライブ含む）に .md ファイルとして保存。ファイルアプリから直接見られます。</div>
-        </button>
-        <p class="desc" id="fsUnsupportedNote" style="display: none; color: #b4783c;">※ このブラウザはフォルダ保存（File System Access API）に未対応のため、ブラウザ内保存のみ利用できます。</p>
-      </div>
-    </div>
-
     <!-- ===== 保存繰り返し失敗時の復旧案内 ===== -->
     <div class="overlay" id="saveFailOverlay">
       <div class="modal">
         <h2>⚠️ 保存できません</h2>
-        <p class="desc">このブラウザ内保存（IndexedDB）が繰り返し失敗しています。端末側のストレージが不調になっている可能性があります。<br><br>入力内容は消えていません。以下のいずれかをお試しください。</p>
-        <button class="modal-btn" id="saveFailToFolder">📂 フォルダ保存に切り替える</button>
+        <p class="desc">保存が繰り返し失敗しています。端末側のストレージが不調になっている可能性があります。<br><br>入力内容は消えていません。以下のいずれかをお試しください。</p>
         <button class="modal-btn secondary" id="saveFailDownload">📥 今すぐ .md をダウンロード</button>
         <button class="modal-btn secondary" id="saveFailRetry">もう一度「保存」を試す</button>
         <p class="desc" style="margin-top: 1rem; margin-bottom: 0;">直らない場合：ブラウザの設定 →サイトの設定 → このサイト →「ストレージデータを削除」で直ることがあります（保存済みメモは消えます）。</p>
         <button class="modal-btn secondary" id="saveFailClose">閉じる</button>
-      </div>
-    </div>
-
-    <!-- ===== フォルダ再接続 ===== -->
-    <div class="overlay" id="reconnectOverlay">
-      <div class="modal">
-        <h2>📂 フォルダへの再接続</h2>
-        <p class="desc">保存先フォルダへのアクセス許可が必要です。ボタンを押して許可してください。</p>
-        <button class="modal-btn" id="reconnectBtn">フォルダへのアクセスを許可</button>
-        <button class="modal-btn secondary" id="reconnectChangeBtn">別の保存先を選ぶ</button>
       </div>
     </div>
 
@@ -1016,14 +988,17 @@
       <div class="modal">
         <h2>⚙️ 設定</h2>
         <div class="settings-row">
-          <div class="label">現在の保存先</div>
-          <div class="value" id="settingsStorage">-</div>
+          <div class="label">メモの保存先</div>
+          <div class="value" id="settingsStorage">📱 このブラウザ内（IndexedDB）</div>
+        </div>
+        <div class="settings-row">
+          <div class="label">描画の保存先</div>
+          <div class="value">📱 このブラウザ内（IndexedDB・別領域）</div>
         </div>
         <div class="settings-row">
           <div class="label">ストレージ使用量</div>
           <div class="value" id="settingsUsage">計測中...</div>
         </div>
-        <button class="modal-btn" id="changeStorageBtn">保存先を変更</button>
         <button class="modal-btn secondary" id="settingsClose">閉じる</button>
       </div>
     </div>
@@ -1091,8 +1066,6 @@
     const ua = navigator.userAgent.toLowerCase();
     const isIOS = /iphone|ipad|ipod/.test(ua);
     const isAndroid = /android/.test(ua);
-    const supportsFS = 'showDirectoryPicker' in window;
-
     // ===== Service Worker =====
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('./sw.js').catch(() => {});
@@ -1223,234 +1196,34 @@
       }));
     }
 
-    // --- メモ ⇄ Markdown 変換（フォルダ保存用） ---
-    const ATTACH_MARKER = '<!-- attachments -->';
-
-    function memoToMarkdown(memo) {
-      let md = '---\n';
-      md += `title: ${memo.title.replace(/\n/g, ' ')}\n`;
-      md += `created: ${memo.createdAt}\n`;
-      md += `updated: ${memo.updatedAt}\n`;
-      md += '---\n';
-      md += memo.content;
-      if (memo.images && memo.images.length > 0) {
-        md += `\n\n${ATTACH_MARKER}\n`;
-        memo.images.forEach((img, i) => {
-          md += `![sketch-${i + 1}](${img.dataUrl})\n`;
-        });
-      }
-      return md;
-    }
-
-    function markdownToMemo(text, fileId) {
-      const memo = { id: fileId, title: '無題', content: '', createdAt: Date.now(), updatedAt: Date.now(), images: [] };
-      let body = text;
-      const fmMatch = text.match(/^---\n([\s\S]*?)\n---\n?/);
-      if (fmMatch) {
-        body = text.slice(fmMatch[0].length);
-        fmMatch[1].split('\n').forEach(line => {
-          const idx = line.indexOf(':');
-          if (idx < 0) return;
-          const key = line.slice(0, idx).trim();
-          const val = line.slice(idx + 1).trim();
-          if (key === 'title') memo.title = val || '無題';
-          if (key === 'created') memo.createdAt = parseInt(val) || memo.createdAt;
-          if (key === 'updated') memo.updatedAt = parseInt(val) || memo.updatedAt;
-        });
-      }
-      const markerIdx = body.indexOf(ATTACH_MARKER);
-      if (markerIdx >= 0) {
-        const attachPart = body.slice(markerIdx);
-        body = body.slice(0, markerIdx).replace(/\n+$/, '');
-        const re = /!\[[^\]]*\]\((data:image\/[^)]+)\)/g;
-        let m;
-        while ((m = re.exec(attachPart)) !== null) {
-          memo.images.push({ id: memo.images.length + 1, dataUrl: m[1] });
-        }
-      }
-      memo.content = body;
-      return memo;
-    }
-
-    // --- ストレージアダプタ ---
+    // --- メモの保存機能（旧メモアプリと同じ、ブラウザ内 IndexedDB 固定） ---
+    // 描画の保存（drawings ストア）とは独立した保存系。
     const storage = {
-      mode: null, // 'idb' | 'fs'
-      dirHandle: null,
-
       async getAll() {
-        if (this.mode === 'fs') {
-          const memos = [];
-          try {
-            for await (const entry of this.dirHandle.values()) {
-              if (entry.kind !== 'file' || !entry.name.endsWith('.md')) continue;
-              const idMatch = entry.name.match(/^memo-(\d+)\.md$/);
-              if (!idMatch) continue;
-              try {
-                const file = await entry.getFile();
-                const text = await file.text();
-                memos.push(markdownToMemo(text, parseInt(idMatch[1])));
-              } catch (e) { /* 読めないファイルはスキップ */ }
-            }
-          } catch (e) {
-            // フォルダ自体が読めない場合はブラウザ内退避分だけでも表示する
-            console.log('folder read failed:', e.message);
-          }
-          // フォルダに書けなかった時の退避分（ブラウザ内）もマージして表示。
-          // 同じ id が両方にある場合は更新が新しい方を採用。
-          try {
-            const local = await idbGetAll('memos');
-            for (const m of local) {
-              const idx = memos.findIndex(x => x.id === m.id);
-              if (idx < 0) {
-                memos.push(m);
-              } else if (m.updatedAt > memos[idx].updatedAt) {
-                memos[idx] = m;
-              }
-            }
-          } catch (e) { /* noop */ }
-          return memos.sort((a, b) => b.updatedAt - a.updatedAt);
-        }
         const all = await idbGetAll('memos');
         return all.sort((a, b) => b.updatedAt - a.updatedAt);
       },
 
       async save(memo) {
-        if (this.mode === 'fs') {
-          try {
-            const handle = await this.dirHandle.getFileHandle(`memo-${memo.id}.md`, { create: true });
-            const writable = await handle.createWritable();
-            await writable.write(memoToMarkdown(memo));
-            await writable.close();
-            // フォルダ保存に成功したら過去の退避分は消しておく（二重管理防止）
-            await idbDelete('memos', memo.id).catch(() => {});
-            return;
-          } catch (e) {
-            // フォルダに書けない端末・状態ではブラウザ内へ自動退避。
-            // getAll がマージ表示するので、ユーザーからはそのまま保存されたように見える。
-            console.log('folder write failed, falling back to IndexedDB:', e.message);
-            await idbPut('memos', memo);
-            showToast('フォルダに書き込めないため、ブラウザ内に保存しました');
-            return;
-          }
-        }
         await idbPut('memos', memo);
       },
 
       async remove(memo) {
-        if (this.mode === 'fs') {
-          try { await this.dirHandle.removeEntry(`memo-${memo.id}.md`); } catch (e) {}
-          // 退避分も削除
-          await idbDelete('memos', memo.id).catch(() => {});
-          return;
-        }
         await idbDelete('memos', memo.id);
       },
 
       label() {
-        if (this.mode === 'fs') {
-          return `📂 フォルダ「${this.dirHandle ? this.dirHandle.name : '?'}」（.md ファイル）`;
-        }
         return '📱 このブラウザ内（IndexedDB）';
       },
     };
 
-    // =========================================================
-    // 保存先セットアップ（初回ウィザード / 再接続 / 変更）
-    // =========================================================
-    async function verifyFsPermission(handle, withPrompt) {
-      const opts = { mode: 'readwrite' };
-      if (await handle.queryPermission(opts) === 'granted') return true;
-      if (withPrompt && await handle.requestPermission(opts) === 'granted') return true;
-      return false;
-    }
-
-    function showSetupWizard() {
-      if (!supportsFS) {
-        $('optFs').setAttribute('disabled', '');
-        $('fsUnsupportedNote').style.display = 'block';
-      }
-      $('setupOverlay').classList.add('show');
-    }
-
-    async function chooseIdb() {
-      storage.mode = 'idb';
-      storage.dirHandle = null;
-      localStorage.setItem('storageMode', 'idb');
-      await idbDelete('settings', 'dirHandle').catch(() => {});
-      $('setupOverlay').classList.remove('show');
-      $('reconnectOverlay').classList.remove('show');
-      showToast('ブラウザ内保存に設定しました');
-      renderList();
-    }
-
-    async function chooseFs() {
-      if (!supportsFS) return;
-      try {
-        const handle = await window.showDirectoryPicker({ mode: 'readwrite' });
-        if (!(await verifyFsPermission(handle, true))) {
-          showToast('フォルダへのアクセスが許可されませんでした');
-          return;
-        }
-        storage.mode = 'fs';
-        storage.dirHandle = handle;
-        localStorage.setItem('storageMode', 'fs');
-        await idbPut('settings', { key: 'dirHandle', handle });
-        $('setupOverlay').classList.remove('show');
-        $('reconnectOverlay').classList.remove('show');
-        showToast(`フォルダ「${handle.name}」に保存します`);
-        renderList();
-      } catch (e) {
-        // ユーザーがピッカーをキャンセル
-      }
-    }
-
     async function initStorage() {
       await openIDB();
       await migrateFromOldDB();
-      const mode = localStorage.getItem('storageMode');
-
-      if (mode === 'fs' && supportsFS) {
-        const saved = await idbGet('settings', 'dirHandle').catch(() => null);
-        if (saved && saved.handle) {
-          storage.mode = 'fs';
-          storage.dirHandle = saved.handle;
-          // 許可はユーザー操作が必要な場合があるため、まず無音で確認
-          if (await verifyFsPermission(saved.handle, false)) {
-            return true;
-          }
-          // 再接続画面（ボタン押下 = ユーザー操作で requestPermission）
-          $('reconnectOverlay').classList.add('show');
-          return false;
-        }
-      }
-
-      if (mode === 'idb' || (mode === 'fs' && !supportsFS)) {
-        storage.mode = 'idb';
-        return true;
-      }
-
-      // 未設定 → 初回ウィザード
-      storage.mode = 'idb'; // ウィザード表示中も内部は idb で安全側に
-      showSetupWizard();
-      return false;
+      return true;
     }
 
-    $('optIdb').addEventListener('click', chooseIdb);
-    $('optFs').addEventListener('click', chooseFs);
-
     // ===== 保存繰り返し失敗時の復旧モーダル =====
-    $('saveFailToFolder').addEventListener('click', async () => {
-      if (!supportsFS) {
-        showToast('このブラウザはフォルダ保存に対応していません');
-        return;
-      }
-      await chooseFs();
-      if (storage.mode === 'fs') {
-        $('saveFailOverlay').classList.remove('show');
-        saveFailStreak = 0;
-        await saveCurrentMemo();
-      }
-    });
     $('saveFailDownload').addEventListener('click', () => {
       downloadCurrentMemo();
     });
@@ -1460,19 +1233,6 @@
     });
     $('saveFailClose').addEventListener('click', () => {
       $('saveFailOverlay').classList.remove('show');
-    });
-    $('reconnectBtn').addEventListener('click', async () => {
-      if (storage.dirHandle && await verifyFsPermission(storage.dirHandle, true)) {
-        $('reconnectOverlay').classList.remove('show');
-        showToast(`フォルダ「${storage.dirHandle.name}」に再接続しました`);
-        renderList();
-      } else {
-        showToast('許可されませんでした。別の保存先を選んでください');
-      }
-    });
-    $('reconnectChangeBtn').addEventListener('click', () => {
-      $('reconnectOverlay').classList.remove('show');
-      showSetupWizard();
     });
 
     // ===== 設定モーダル =====
@@ -1494,10 +1254,6 @@
       }
     });
     $('settingsClose').addEventListener('click', () => $('settingsOverlay').classList.remove('show'));
-    $('changeStorageBtn').addEventListener('click', () => {
-      $('settingsOverlay').classList.remove('show');
-      showSetupWizard();
-    });
 
     // =========================================================
     // タブ切り替え
@@ -2098,7 +1854,7 @@
         // 保存先の不調でも内容を失わないよう一時退避し、画面には留まる
         backupDraft(currentMemo);
         saveFailStreak++;
-        if (saveFailStreak >= 2 && storage.mode === 'idb') {
+        if (saveFailStreak >= 2) {
           $('saveFailOverlay').classList.add('show');
         } else {
           showToast('保存できませんでした（内容は保持されています）。もう一度「保存」を押してください', 4500);
