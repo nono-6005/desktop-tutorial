@@ -1060,36 +1060,57 @@
       });
     }
 
+    // Android Chrome ではタブのバックグラウンド化・画面ロック後などに
+    // IndexedDB 接続が古い状態のまま残り、操作が失敗することがある
+    // （"state had changed since it was read from disk" エラー）。
+    // 検知したら接続を張り直して 1 回だけ再試行する。
+    function isStaleConnectionError(err) {
+      return !!err && typeof err.message === 'string' && err.message.includes('state had changed since it was read from disk');
+    }
+
+    async function withIdbRetry(run) {
+      try {
+        return await run();
+      } catch (err) {
+        if (!isStaleConnectionError(err)) throw err;
+        try {
+          if (idb) idb.close();
+        } catch (e) { /* noop */ }
+        await openIDB();
+        return await run();
+      }
+    }
+
     function idbGet(storeName, key) {
-      return new Promise((resolve, reject) => {
+      return withIdbRetry(() => new Promise((resolve, reject) => {
         const req = idb.transaction([storeName], 'readonly').objectStore(storeName).get(key);
         req.onerror = () => reject(req.error);
         req.onsuccess = () => resolve(req.result);
-      });
+      }));
     }
 
     function idbPut(storeName, value) {
-      return new Promise((resolve, reject) => {
+      return withIdbRetry(() => new Promise((resolve, reject) => {
         const req = idb.transaction([storeName], 'readwrite').objectStore(storeName).put(value);
         req.onerror = () => reject(req.error);
         req.onsuccess = () => resolve(req.result);
-      });
+      }));
     }
 
     function idbDelete(storeName, key) {
-      return new Promise((resolve, reject) => {
+      return withIdbRetry(() => new Promise((resolve, reject) => {
         const req = idb.transaction([storeName], 'readwrite').objectStore(storeName).delete(key);
         req.onerror = () => reject(req.error);
         req.onsuccess = () => resolve();
-      });
+      }));
     }
 
     function idbGetAll(storeName) {
-      return new Promise((resolve, reject) => {
+      return withIdbRetry(() => new Promise((resolve, reject) => {
         const req = idb.transaction([storeName], 'readonly').objectStore(storeName).getAll();
         req.onerror = () => reject(req.error);
         req.onsuccess = () => resolve(req.result);
-      });
+      }));
     }
 
     // --- メモ ⇄ Markdown 変換（フォルダ保存用） ---
