@@ -7,7 +7,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="メモ">
   <meta name="theme-color" content="#d97757">
-  <meta name="description" content="Markdown対応のローカルメモアプリ">
+  <meta name="description" content="Markdown対応のローカルメモ＋手書きアプリ">
   <link rel="manifest" href="./manifest.json">
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect fill='%23d97757' width='192' height='192'/><text x='50%' y='50%' font-size='120' font-weight='bold' fill='white' text-anchor='middle' dominant-baseline='middle' font-family='system-ui'>メ</text></svg>">
   <title>メモ</title>
@@ -35,22 +35,65 @@
       user-select: text;
     }
 
-    body.no-scroll {
-      overflow: hidden;
-    }
-
     #app {
       display: flex;
       flex-direction: column;
       height: 100vh;
-      background: linear-gradient(180deg, #0f0f0f 0%, #1a1a1a 50%, #0f0f0f 100%);
+    }
+
+    /* ===== タブバー ===== */
+    .tab-bar {
+      display: flex;
+      align-items: center;
+      background: #0f0f0f;
+      border-bottom: 1px solid rgba(180, 120, 60, 0.2);
+      flex-shrink: 0;
+    }
+
+    .tab-btn {
+      flex: 1;
+      background: none;
+      border: none;
+      border-bottom: 2px solid transparent;
+      color: #888;
+      font-size: 0.9rem;
+      padding: 0.8rem 0.5rem;
+      cursor: pointer;
+      transition: all 0.15s;
+      white-space: nowrap;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+
+    .tab-btn.active {
+      color: #f5e6d3;
+      border-bottom-color: #d97757;
+    }
+
+    .settings-btn {
+      flex: 0 0 auto;
+      background: none;
+      border: none;
+      color: #888;
+      font-size: 1.1rem;
+      padding: 0.8rem;
+      cursor: pointer;
+    }
+
+    /* ===== タブページ ===== */
+    .tab-page {
+      display: none;
+      flex-direction: column;
+      flex: 1;
+      min-height: 0;
+    }
+
+    .tab-page.active {
+      display: flex;
     }
 
     /* ===== ヘッダー ===== */
     .header {
-      position: sticky;
-      top: 0;
-      z-index: 100;
       background: #0f0f0f;
       border-bottom: 1px solid rgba(180, 120, 60, 0.2);
       padding: 1rem;
@@ -64,7 +107,7 @@
     }
 
     .header h1 {
-      font-size: 1.5rem;
+      font-size: 1.3rem;
       font-weight: 300;
       letter-spacing: 0.05em;
       color: #f5e6d3;
@@ -80,26 +123,18 @@
       background: linear-gradient(135deg, #d97757 0%, #b4783c 100%);
       border: none;
       color: white;
-      font-size: 0.85rem;
+      font-size: 0.8rem;
       font-weight: 500;
-      padding: 0.55rem 0.9rem;
+      padding: 0.5rem 0.85rem;
       border-radius: 999px;
       cursor: pointer;
-      display: flex;
-      align-items: center;
-      gap: 0.3rem;
       box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
       -webkit-user-select: none;
       user-select: none;
-      transition: transform 0.15s ease;
     }
 
     .install-btn:active {
       transform: scale(0.95);
-    }
-
-    .install-btn.hidden {
-      display: none;
     }
 
     /* ===== トースト通知 ===== */
@@ -118,7 +153,7 @@
       opacity: 0;
       pointer-events: none;
       transition: opacity 0.25s ease, transform 0.25s ease;
-      z-index: 200;
+      z-index: 500;
       max-width: 90vw;
       text-align: center;
     }
@@ -128,43 +163,111 @@
       transform: translate(-50%, 0);
     }
 
-    @supports (padding: max(0px)) {
-      .toast {
-        bottom: max(2rem, calc(2rem + env(safe-area-inset-bottom)));
-      }
-    }
-
-    /* ===== ホーム画面追加ガイド ===== */
-    .guide-overlay {
+    /* ===== モーダル共通 ===== */
+    .overlay {
       position: fixed;
       inset: 0;
-      background: rgba(0, 0, 0, 0.6);
+      background: rgba(0, 0, 0, 0.65);
       z-index: 300;
       display: none;
       align-items: center;
       justify-content: center;
-      padding: 1.5rem;
+      padding: 1rem;
     }
 
-    .guide-overlay.show {
+    .overlay.show {
       display: flex;
     }
 
-    .guide-modal {
+    .modal {
       background: #1a1a1a;
       border: 1px solid rgba(180, 120, 60, 0.3);
       border-radius: 16px;
       padding: 1.5rem;
-      max-width: 420px;
+      max-width: 440px;
       width: 100%;
+      max-height: 90vh;
+      overflow-y: auto;
       box-shadow: 0 8px 30px rgba(0, 0, 0, 0.6);
     }
 
-    .guide-modal h2 {
+    .modal h2 {
       color: #f5e6d3;
       font-size: 1.15rem;
       font-weight: 500;
       margin-bottom: 1rem;
+    }
+
+    .modal p.desc {
+      font-size: 0.85rem;
+      color: #999;
+      line-height: 1.5;
+      margin-bottom: 1rem;
+    }
+
+    .modal-btn {
+      width: 100%;
+      background: linear-gradient(135deg, #d97757 0%, #b4783c 100%);
+      border: none;
+      color: white;
+      font-size: 0.95rem;
+      font-weight: 500;
+      padding: 0.75rem;
+      border-radius: 10px;
+      cursor: pointer;
+      margin-top: 0.5rem;
+    }
+
+    .modal-btn.secondary {
+      background: #2a2a2a;
+      color: #d4d4d4;
+      border: 1px solid #444;
+    }
+
+    .modal-btn:active {
+      transform: scale(0.98);
+    }
+
+    /* 保存先選択カード */
+    .storage-option {
+      display: block;
+      width: 100%;
+      text-align: left;
+      background: #222;
+      border: 1px solid #444;
+      border-radius: 12px;
+      padding: 1rem;
+      margin-bottom: 0.75rem;
+      cursor: pointer;
+      color: #d4d4d4;
+      transition: border-color 0.15s;
+    }
+
+    .storage-option:active,
+    .storage-option:hover {
+      border-color: #d97757;
+    }
+
+    .storage-option.selected {
+      border-color: #d97757;
+      background: rgba(217, 119, 87, 0.1);
+    }
+
+    .storage-option .so-title {
+      font-size: 1rem;
+      color: #f5e6d3;
+      margin-bottom: 0.3rem;
+    }
+
+    .storage-option .so-desc {
+      font-size: 0.78rem;
+      color: #999;
+      line-height: 1.45;
+    }
+
+    .storage-option[disabled] {
+      opacity: 0.45;
+      cursor: not-allowed;
     }
 
     .guide-modal ol {
@@ -198,22 +301,7 @@
       justify-content: center;
     }
 
-    .guide-close {
-      width: 100%;
-      background: linear-gradient(135deg, #d97757 0%, #b4783c 100%);
-      border: none;
-      color: white;
-      font-size: 0.95rem;
-      font-weight: 500;
-      padding: 0.75rem;
-      border-radius: 10px;
-      cursor: pointer;
-    }
-
-    .guide-close:active {
-      transform: scale(0.98);
-    }
-
+    /* ===== メモリスト・エディタ ===== */
     .header-edit {
       display: flex;
       justify-content: space-between;
@@ -228,16 +316,11 @@
       cursor: pointer;
       font-size: 0.95rem;
       padding: 0.5rem;
-      transition: color 0.2s;
       display: flex;
       align-items: center;
       gap: 0.3rem;
       -webkit-user-select: none;
       user-select: none;
-    }
-
-    .header-edit button:active {
-      color: #e0d0b8;
     }
 
     .header-edit .delete-btn {
@@ -248,7 +331,6 @@
       color: #e74c3c;
     }
 
-    /* ===== メインコンテンツ ===== */
     .content {
       flex: 1;
       overflow-y: auto;
@@ -260,16 +342,11 @@
       width: 4px;
     }
 
-    .content::-webkit-scrollbar-track {
-      background: transparent;
-    }
-
     .content::-webkit-scrollbar-thumb {
       background: rgba(180, 120, 60, 0.3);
       border-radius: 2px;
     }
 
-    /* リスト表示 */
     .memo-list {
       list-style: none;
     }
@@ -284,11 +361,7 @@
       user-select: none;
     }
 
-    .memo-item:active {
-      background: rgba(100, 60, 20, 0.3);
-      border-left-color: #b4783c;
-    }
-
+    .memo-item:active,
     .memo-item:hover {
       border-left-color: #b4783c;
       background: rgba(100, 60, 20, 0.15);
@@ -322,52 +395,49 @@
       text-align: right;
     }
 
+    .memo-badge {
+      display: inline-block;
+      font-size: 0.7rem;
+      color: #d97757;
+      margin-right: 0.4rem;
+    }
+
     .empty-state {
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      height: 60vh;
+      height: 50vh;
       gap: 1rem;
       color: #666;
     }
 
-    .empty-state p:first-child {
-      font-size: 0.95rem;
+    .list-view {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
     }
 
-    .empty-state p:last-child {
-      font-size: 0.8rem;
-      color: #555;
+    .list-view.hidden {
+      display: none;
     }
 
-    /* エディタ表示 */
     .editor-wrapper {
       display: none;
       flex-direction: column;
       flex: 1;
+      min-height: 0;
     }
 
     .editor-wrapper.active {
       display: flex;
     }
 
-    /* モバイルでは list-view または editor-wrapper のみ表示 */
-    @media (max-width: 767px) {
-      .editor-wrapper {
-        width: 100%;
-        height: 100%;
-      }
-    }
-
     .editor-container {
-      display: none;
-      flex-direction: column;
-      height: 100%;
-    }
-
-    .editor-container.active {
       display: flex;
+      flex-direction: column;
+      flex: 1;
+      min-height: 0;
     }
 
     .title-input {
@@ -379,14 +449,14 @@
       font-weight: 500;
       color: #f5e6d3;
       outline: none;
-      transition: border-color 0.2s;
     }
 
     .title-input:focus {
       border-bottom-color: #b4783c;
     }
 
-    .title-input::placeholder {
+    .title-input::placeholder,
+    .content-input::placeholder {
       color: #555;
     }
 
@@ -402,19 +472,87 @@
       line-height: 1.5;
       resize: none;
       -webkit-overflow-scrolling: touch;
-    }
-
-    .content-input::placeholder {
-      color: #555;
+      min-height: 0;
     }
 
     .editor-meta {
-      padding: 0 1rem 1rem;
+      padding: 0 1rem 0.5rem;
       font-size: 0.75rem;
       color: #555;
     }
 
-    /* ===== FAB（新規作成ボタン） ===== */
+    /* スケッチ添付ストリップ（両方モード） */
+    .attachments {
+      display: none;
+      gap: 0.5rem;
+      padding: 0.5rem 1rem;
+      overflow-x: auto;
+      flex-shrink: 0;
+      border-top: 1px solid #222;
+      align-items: center;
+    }
+
+    .attachments.visible {
+      display: flex;
+    }
+
+    .attachment-thumb {
+      position: relative;
+      flex-shrink: 0;
+      width: 72px;
+      height: 72px;
+      border: 1px solid #444;
+      border-radius: 8px;
+      overflow: hidden;
+      cursor: pointer;
+      background: #111;
+    }
+
+    .attachment-thumb img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .attachment-thumb .att-del {
+      position: absolute;
+      top: 2px;
+      right: 2px;
+      width: 1.3rem;
+      height: 1.3rem;
+      border-radius: 50%;
+      background: rgba(0, 0, 0, 0.7);
+      color: #e74c3c;
+      border: none;
+      font-size: 0.75rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .sketch-add-btn {
+      flex-shrink: 0;
+      width: 72px;
+      height: 72px;
+      border: 1px dashed #666;
+      border-radius: 8px;
+      background: none;
+      color: #999;
+      font-size: 0.7rem;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 0.2rem;
+    }
+
+    .sketch-add-btn span {
+      font-size: 1.2rem;
+    }
+
+    /* ===== FAB ===== */
     .fab {
       position: fixed;
       bottom: 1.5rem;
@@ -432,7 +570,6 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      transition: all 0.2s ease;
       font-weight: bold;
       -webkit-user-select: none;
       user-select: none;
@@ -446,23 +583,133 @@
       display: none;
     }
 
-    /* ===== ビュー切り替え ===== */
-    .list-view {
+    /* ===== 描画タブ ===== */
+    .draw-toolbar {
+      display: flex;
+      gap: 0.4rem;
+      flex-wrap: wrap;
+      padding: 0.6rem 1rem;
+      background: #0f0f0f;
+      border-bottom: 1px solid rgba(180, 120, 60, 0.2);
+      align-items: center;
+      flex-shrink: 0;
+    }
+
+    .draw-btn {
+      padding: 0.5rem 0.7rem;
+      background: rgba(180, 120, 60, 0.2);
+      border: 1px solid #666;
+      color: #f5e6d3;
+      font-size: 0.85rem;
+      cursor: pointer;
+      border-radius: 3px;
+      white-space: nowrap;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+
+    .draw-btn:active {
+      background: rgba(180, 120, 60, 0.4);
+    }
+
+    .draw-btn.toggled {
+      border-color: #d97757;
+      background: rgba(217, 119, 87, 0.35);
+    }
+
+    .color-picker {
+      width: 2.3rem;
+      height: 2.3rem;
+      border: 1px solid #666;
+      border-radius: 3px;
+      cursor: pointer;
+      padding: 2px;
+      background: none;
+    }
+
+    .brush-select {
+      padding: 0.5rem 0.6rem;
+      background: rgba(180, 120, 60, 0.2);
+      border: 1px solid #666;
+      color: #f5e6d3;
+      font-size: 0.8rem;
+      cursor: pointer;
+      border-radius: 3px;
+    }
+
+    .draw-canvas-holder {
+      flex: 1;
+      min-height: 0;
+      padding: 0.75rem;
+      display: flex;
+    }
+
+    .draw-canvas-holder canvas {
+      flex: 1;
+      width: 100%;
+      border: 1px solid #333;
+      border-radius: 4px;
+      background: #1a1a1a;
+      cursor: crosshair;
+      touch-action: none;
+    }
+
+    /* スケッチモーダル */
+    .sketch-modal {
+      max-width: 640px;
       display: flex;
       flex-direction: column;
-      height: 100%;
+      height: min(80vh, 620px);
+      padding: 1rem;
     }
 
-    .list-view.hidden {
-      display: none;
+    .sketch-modal .draw-toolbar {
+      border-bottom: none;
+      background: none;
+      padding: 0.4rem 0;
     }
 
-    /* iOS safe area 対応 */
+    .sketch-modal .draw-canvas-holder {
+      padding: 0;
+    }
+
+    .sketch-actions {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: 0.75rem;
+      flex-shrink: 0;
+    }
+
+    .sketch-actions .modal-btn {
+      margin-top: 0;
+    }
+
+    /* ===== 設定モーダル ===== */
+    .settings-row {
+      padding: 0.75rem 0;
+      border-bottom: 1px solid #2a2a2a;
+      font-size: 0.9rem;
+    }
+
+    .settings-row .label {
+      color: #999;
+      font-size: 0.78rem;
+      margin-bottom: 0.3rem;
+    }
+
+    .settings-row .value {
+      color: #f5e6d3;
+    }
+
+    /* safe-area */
     @supports (padding: max(0px)) {
       .header {
-        padding-top: max(1rem, env(safe-area-inset-top));
         padding-left: max(1rem, env(safe-area-inset-left));
         padding-right: max(1rem, env(safe-area-inset-right));
+      }
+
+      .tab-bar {
+        padding-top: env(safe-area-inset-top);
       }
 
       .fab {
@@ -470,211 +717,971 @@
         right: max(1.5rem, calc(1.5rem + env(safe-area-inset-right)));
       }
 
-      .content {
-        padding-bottom: max(1rem, env(safe-area-inset-bottom));
+      .toast {
+        bottom: max(2rem, calc(2rem + env(safe-area-inset-bottom)));
       }
     }
 
-    /* ===== タブレット・デスクトップ対応（768px以上） ===== */
+    /* ===== タブレット・デスクトップ（768px〜） ===== */
     @media (min-width: 768px) {
-      #app {
+      .memo-layout {
         flex-direction: row;
       }
 
-      .list-view {
-        width: 350px;
+      .memo-layout .list-view {
+        width: 340px;
         border-right: 1px solid rgba(180, 120, 60, 0.2);
-        flex-direction: column;
       }
 
-      .list-view.hidden {
+      .memo-layout .list-view.hidden {
         display: flex;
       }
 
-      .editor-container {
-        display: flex;
-      }
-
-      #editorHeader {
-        border-right: none;
-        border-bottom: 1px solid rgba(180, 120, 60, 0.2);
-        position: relative;
-        top: 0;
-      }
-
-      /* タブレットではエディタ枠を常時表示（2カラム） */
-      .editor-wrapper {
+      .memo-layout .editor-wrapper {
         flex: 1;
         display: flex;
-        flex-direction: column;
       }
 
-      .header h1 {
-        font-size: 1.8rem;
-      }
-
-      .header-edit button {
-        font-size: 1rem;
-        padding: 0.75rem;
+      .fab.hidden {
+        display: flex;
       }
 
       .title-input {
         font-size: 1.5rem;
-        padding: 1.5rem;
+        padding: 1.25rem;
       }
 
       .content-input {
         font-size: 1rem;
       }
-
-      .memo-item {
-        padding: 1.25rem;
-      }
-
-      .memo-title {
-        font-size: 1.1rem;
-      }
-
-      .memo-preview {
-        font-size: 0.9rem;
-      }
-
-      /* タブレットではリストを常時表示（エディタ表示中も隠さない） */
-      .list-view.hidden {
-        display: flex;
-      }
-
-      /* タブレットでは fab を常時表示 */
-      .fab.hidden {
-        display: flex;
-      }
     }
 
-    /* ===== 大画面対応（1024px以上） ===== */
     @media (min-width: 1024px) {
-      .list-view {
+      .memo-layout .list-view {
         width: 400px;
-      }
-
-      .header h1 {
-        font-size: 2rem;
-      }
-
-      .title-input {
-        font-size: 1.8rem;
-      }
-
-      .memo-title {
-        font-size: 1.2rem;
       }
     }
   </style>
 </head>
 <body>
   <div id="app">
-    <!-- リスト表示 -->
-    <div class="list-view" id="listView">
-      <div class="header">
-        <div class="header-list">
-          <div>
-            <h1>メモ</h1>
-            <p class="header-count" id="memoCount">0 件</p>
+    <!-- タブバー -->
+    <div class="tab-bar">
+      <button class="tab-btn active" data-tab="memo">📝 メモ</button>
+      <button class="tab-btn" data-tab="draw">🎨 描画</button>
+      <button class="tab-btn" data-tab="both">📋 両方</button>
+      <button class="settings-btn" id="settingsBtn" title="設定">⚙️</button>
+    </div>
+
+    <!-- ===== メモタブ / 両方タブ 共用ページ ===== -->
+    <div class="tab-page memo-layout active" id="page-memo" style="flex-direction: column;">
+      <div style="display: flex; flex: 1; min-height: 0;" class="memo-layout" id="memoLayout">
+        <!-- リスト -->
+        <div class="list-view" id="listView">
+          <div class="header">
+            <div class="header-list">
+              <div>
+                <h1>メモ</h1>
+                <p class="header-count" id="memoCount">0 件</p>
+              </div>
+              <button id="installBtn" class="install-btn">🔖 ブックマーク</button>
+            </div>
           </div>
-          <button id="installBtn" class="install-btn">🔖 ブックマーク</button>
+          <div class="content">
+            <ul class="memo-list" id="memoList"></ul>
+            <div class="empty-state" id="emptyState">
+              <p>メモはまだありません</p>
+              <p>新規作成ボタンから始める</p>
+            </div>
+          </div>
         </div>
-      </div>
-      <div class="content">
-        <ul class="memo-list" id="memoList"></ul>
-        <div class="empty-state" id="emptyState">
-          <p>メモはまだありません</p>
-          <p>新規作成ボタンから始める</p>
+
+        <!-- エディタ -->
+        <div class="editor-wrapper" id="editorWrapper">
+          <div class="header" id="editorHeader" style="display: none;">
+            <div class="header-edit">
+              <button id="saveBtn">← 保存</button>
+              <div style="display: flex; gap: 0.25rem;">
+                <button id="sketchBtn" style="display: none;">📐 スケッチ</button>
+                <button id="downloadBtn">📥</button>
+                <button class="delete-btn" id="deleteBtn">🗑</button>
+              </div>
+            </div>
+          </div>
+          <div class="editor-container" id="editorContainer" style="display: none;">
+            <input type="text" class="title-input" id="titleInput" placeholder="タイトル">
+            <textarea class="content-input" id="contentInput" placeholder="Markdown で記述..."></textarea>
+            <div class="attachments" id="attachments"></div>
+            <div class="editor-meta" id="editorMeta"></div>
+          </div>
         </div>
       </div>
     </div>
 
-    <!-- エディタラッパー -->
-    <div class="editor-wrapper" id="editorWrapper">
-      <!-- エディタ表示 -->
-      <div class="header" id="editorHeader" style="display: none;">
-        <div class="header-edit">
-          <button id="saveBtn">← 保存</button>
-          <button id="downloadBtn">📥</button>
-          <button class="delete-btn" id="deleteBtn">🗑</button>
-        </div>
+    <!-- ===== 描画タブ ===== -->
+    <div class="tab-page" id="page-draw">
+      <div class="draw-toolbar">
+        <input type="color" class="color-picker" id="drawColor" value="#f5e6d3">
+        <select class="brush-select" id="drawBrush">
+          <option value="1">極細</option>
+          <option value="2">細</option>
+          <option value="4" selected>中</option>
+          <option value="6">太</option>
+          <option value="10">極太</option>
+        </select>
+        <button class="draw-btn" id="drawEraser">🧽 消しゴム</button>
+        <button class="draw-btn" id="drawUpload">🖼 画像</button>
+        <button class="draw-btn" id="drawUndo">↶ 戻す</button>
+        <button class="draw-btn" id="drawClear">クリア</button>
+        <button class="draw-btn" id="drawDownload">📥 PNG</button>
+        <input type="file" id="drawImageInput" accept="image/*" style="display: none;">
       </div>
-      <div class="editor-container" id="editorContainer">
-        <input type="text" class="title-input" id="titleInput" placeholder="タイトル">
-        <textarea class="content-input" id="contentInput" placeholder="Markdown で記述..."></textarea>
-        <div class="editor-meta" id="editorMeta"></div>
+      <div class="draw-canvas-holder">
+        <canvas id="drawCanvas"></canvas>
       </div>
     </div>
 
-    <!-- 新規作成ボタン -->
+    <!-- FAB -->
     <button class="fab" id="fabBtn">+</button>
 
-    <!-- トースト通知 -->
+    <!-- トースト -->
     <div class="toast" id="toast"></div>
 
+    <!-- ===== 保存先選択ウィザード ===== -->
+    <div class="overlay" id="setupOverlay">
+      <div class="modal">
+        <h2>データの保存先を選択</h2>
+        <p class="desc">メモの保存先を選んでください。あとから設定（⚙️）で変更できます。</p>
+        <button class="storage-option" id="optIdb">
+          <div class="so-title">📱 このブラウザ内</div>
+          <div class="so-desc">ブラウザのローカルストレージ（IndexedDB）に保存。設定不要ですぐ使えます。この端末・このブラウザ専用。</div>
+        </button>
+        <button class="storage-option" id="optFs">
+          <div class="so-title">📂 フォルダを選んで保存</div>
+          <div class="so-desc">端末内のフォルダ（SD カード・USB ドライブ含む）に .md ファイルとして保存。ファイルアプリから直接見られます。</div>
+        </button>
+        <p class="desc" id="fsUnsupportedNote" style="display: none; color: #b4783c;">※ このブラウザはフォルダ保存（File System Access API）に未対応のため、ブラウザ内保存のみ利用できます。</p>
+      </div>
+    </div>
+
+    <!-- ===== フォルダ再接続 ===== -->
+    <div class="overlay" id="reconnectOverlay">
+      <div class="modal">
+        <h2>📂 フォルダへの再接続</h2>
+        <p class="desc">保存先フォルダへのアクセス許可が必要です。ボタンを押して許可してください。</p>
+        <button class="modal-btn" id="reconnectBtn">フォルダへのアクセスを許可</button>
+        <button class="modal-btn secondary" id="reconnectChangeBtn">別の保存先を選ぶ</button>
+      </div>
+    </div>
+
+    <!-- ===== 設定モーダル ===== -->
+    <div class="overlay" id="settingsOverlay">
+      <div class="modal">
+        <h2>⚙️ 設定</h2>
+        <div class="settings-row">
+          <div class="label">現在の保存先</div>
+          <div class="value" id="settingsStorage">-</div>
+        </div>
+        <div class="settings-row">
+          <div class="label">ストレージ使用量</div>
+          <div class="value" id="settingsUsage">計測中...</div>
+        </div>
+        <button class="modal-btn" id="changeStorageBtn">保存先を変更</button>
+        <button class="modal-btn secondary" id="settingsClose">閉じる</button>
+      </div>
+    </div>
+
+    <!-- ===== スケッチモーダル（両方モード用） ===== -->
+    <div class="overlay" id="sketchOverlay">
+      <div class="modal sketch-modal">
+        <h2 style="margin-bottom: 0.25rem;">📐 スケッチ</h2>
+        <div class="draw-toolbar">
+          <input type="color" class="color-picker" id="sketchColor" value="#f5e6d3">
+          <select class="brush-select" id="sketchBrush">
+            <option value="1">極細</option>
+            <option value="2">細</option>
+            <option value="4" selected>中</option>
+            <option value="6">太</option>
+            <option value="10">極太</option>
+          </select>
+          <button class="draw-btn" id="sketchEraser">🧽</button>
+          <button class="draw-btn" id="sketchUndo">↶</button>
+          <button class="draw-btn" id="sketchClear">クリア</button>
+        </div>
+        <div class="draw-canvas-holder">
+          <canvas id="sketchCanvas"></canvas>
+        </div>
+        <div class="sketch-actions">
+          <button class="modal-btn" id="sketchInsert">メモに挿入</button>
+          <button class="modal-btn secondary" id="sketchCancel">キャンセル</button>
+        </div>
+      </div>
+    </div>
+
     <!-- ブックマーク追加ガイド -->
-    <div class="guide-overlay" id="guideOverlay">
-      <div class="guide-modal">
-        <h2 id="guideTitle">ブックマークに追加</h2>
+    <div class="overlay" id="guideOverlay">
+      <div class="modal guide-modal">
+        <h2>ブックマークに追加</h2>
         <ol id="guideSteps"></ol>
-        <button class="guide-close" id="guideClose">閉じる</button>
+        <button class="modal-btn" id="guideClose">閉じる</button>
       </div>
     </div>
   </div>
 
   <script>
-    // ===== トースト通知 =====
+    'use strict';
+
+    // ===== ユーティリティ =====
     let toastTimer = null;
-    function showToast(message, duration = 3500) {
+    function showToast(message, duration = 3000) {
       const toast = document.getElementById('toast');
       toast.textContent = message;
       toast.classList.add('show');
       clearTimeout(toastTimer);
-      toastTimer = setTimeout(() => {
-        toast.classList.remove('show');
-      }, duration);
+      toastTimer = setTimeout(() => toast.classList.remove('show'), duration);
     }
 
-    // ===== OS 判定 =====
+    function escapeHtml(str) {
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    const $ = (id) => document.getElementById(id);
+
     const ua = navigator.userAgent.toLowerCase();
     const isIOS = /iphone|ipad|ipod/.test(ua);
     const isAndroid = /android/.test(ua);
-    const isTablet = /ipad|android(?!.*mobile)/.test(ua);
-    const isMobile = /mobile|iphone|ipod/.test(ua);
+    const supportsFS = 'showDirectoryPicker' in window;
 
-    // ===== デバッグ情報出力 =====
-    (function logEnvironment() {
-      const viewport = { width: window.innerWidth, height: window.innerHeight };
-      const displayMode = window.matchMedia('(display-mode: standalone)').matches ? 'standalone' : 'browser';
-      const isStandalone = window.navigator.standalone === true;
-
-      console.log('=== メモアプリ 環境情報 ===');
-      console.log('Device:', isTablet ? 'tablet' : isMobile ? 'mobile' : 'desktop');
-      console.log('OS:', isIOS ? 'iOS' : isAndroid ? 'Android' : 'Other');
-      console.log('Viewport:', `${viewport.width}x${viewport.height}`);
-      console.log('UA:', navigator.userAgent.substring(0, 80) + '...');
-      console.log('Display Mode:', displayMode);
-      console.log('Standalone:', isStandalone);
-      console.log('SW Support:', 'serviceWorker' in navigator);
-    })();
-
-    // ===== Service Worker（オフライン対応） =====
+    // ===== Service Worker =====
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('./sw.js').catch(() => {
-        console.log('Service Worker registration failed');
+      navigator.serviceWorker.register('./sw.js').catch(() => {});
+    }
+
+    // =========================================================
+    // ストレージ層（IndexedDB / File System Access API 切り替え）
+    // =========================================================
+    const IDB_NAME = 'MemoApp';
+    const IDB_VERSION = 2;
+    let idb = null;
+
+    function openIDB() {
+      return new Promise((resolve, reject) => {
+        const request = indexedDB.open(IDB_NAME, IDB_VERSION);
+        request.onerror = () => reject(request.error);
+        request.onsuccess = () => { idb = request.result; resolve(idb); };
+        request.onupgradeneeded = (e) => {
+          const database = e.target.result;
+          if (!database.objectStoreNames.contains('memos')) {
+            database.createObjectStore('memos', { keyPath: 'id' });
+          }
+          // フォルダハンドル永続化用（FileSystemDirectoryHandle は IDB に保存可能）
+          if (!database.objectStoreNames.contains('settings')) {
+            database.createObjectStore('settings', { keyPath: 'key' });
+          }
+        };
       });
     }
 
-    // ===== ブックマーク案内 =====
-    const installBtn = document.getElementById('installBtn');
-    const guideOverlay = document.getElementById('guideOverlay');
-    const guideSteps = document.getElementById('guideSteps');
-    const guideClose = document.getElementById('guideClose');
+    function idbGet(storeName, key) {
+      return new Promise((resolve, reject) => {
+        const req = idb.transaction([storeName], 'readonly').objectStore(storeName).get(key);
+        req.onerror = () => reject(req.error);
+        req.onsuccess = () => resolve(req.result);
+      });
+    }
 
-    function showGuide() {
+    function idbPut(storeName, value) {
+      return new Promise((resolve, reject) => {
+        const req = idb.transaction([storeName], 'readwrite').objectStore(storeName).put(value);
+        req.onerror = () => reject(req.error);
+        req.onsuccess = () => resolve(req.result);
+      });
+    }
+
+    function idbDelete(storeName, key) {
+      return new Promise((resolve, reject) => {
+        const req = idb.transaction([storeName], 'readwrite').objectStore(storeName).delete(key);
+        req.onerror = () => reject(req.error);
+        req.onsuccess = () => resolve();
+      });
+    }
+
+    function idbGetAll(storeName) {
+      return new Promise((resolve, reject) => {
+        const req = idb.transaction([storeName], 'readonly').objectStore(storeName).getAll();
+        req.onerror = () => reject(req.error);
+        req.onsuccess = () => resolve(req.result);
+      });
+    }
+
+    // --- メモ ⇄ Markdown 変換（フォルダ保存用） ---
+    const ATTACH_MARKER = '<!-- attachments -->';
+
+    function memoToMarkdown(memo) {
+      let md = '---\n';
+      md += `title: ${memo.title.replace(/\n/g, ' ')}\n`;
+      md += `created: ${memo.createdAt}\n`;
+      md += `updated: ${memo.updatedAt}\n`;
+      md += '---\n';
+      md += memo.content;
+      if (memo.images && memo.images.length > 0) {
+        md += `\n\n${ATTACH_MARKER}\n`;
+        memo.images.forEach((img, i) => {
+          md += `![sketch-${i + 1}](${img.dataUrl})\n`;
+        });
+      }
+      return md;
+    }
+
+    function markdownToMemo(text, fileId) {
+      const memo = { id: fileId, title: '無題', content: '', createdAt: Date.now(), updatedAt: Date.now(), images: [] };
+      let body = text;
+      const fmMatch = text.match(/^---\n([\s\S]*?)\n---\n?/);
+      if (fmMatch) {
+        body = text.slice(fmMatch[0].length);
+        fmMatch[1].split('\n').forEach(line => {
+          const idx = line.indexOf(':');
+          if (idx < 0) return;
+          const key = line.slice(0, idx).trim();
+          const val = line.slice(idx + 1).trim();
+          if (key === 'title') memo.title = val || '無題';
+          if (key === 'created') memo.createdAt = parseInt(val) || memo.createdAt;
+          if (key === 'updated') memo.updatedAt = parseInt(val) || memo.updatedAt;
+        });
+      }
+      const markerIdx = body.indexOf(ATTACH_MARKER);
+      if (markerIdx >= 0) {
+        const attachPart = body.slice(markerIdx);
+        body = body.slice(0, markerIdx).replace(/\n+$/, '');
+        const re = /!\[[^\]]*\]\((data:image\/[^)]+)\)/g;
+        let m;
+        while ((m = re.exec(attachPart)) !== null) {
+          memo.images.push({ id: memo.images.length + 1, dataUrl: m[1] });
+        }
+      }
+      memo.content = body;
+      return memo;
+    }
+
+    // --- ストレージアダプタ ---
+    const storage = {
+      mode: null, // 'idb' | 'fs'
+      dirHandle: null,
+
+      async getAll() {
+        if (this.mode === 'fs') {
+          const memos = [];
+          for await (const entry of this.dirHandle.values()) {
+            if (entry.kind !== 'file' || !entry.name.endsWith('.md')) continue;
+            const idMatch = entry.name.match(/^memo-(\d+)\.md$/);
+            if (!idMatch) continue;
+            try {
+              const file = await entry.getFile();
+              const text = await file.text();
+              memos.push(markdownToMemo(text, parseInt(idMatch[1])));
+            } catch (e) { /* 読めないファイルはスキップ */ }
+          }
+          return memos.sort((a, b) => b.updatedAt - a.updatedAt);
+        }
+        const all = await idbGetAll('memos');
+        return all.sort((a, b) => b.updatedAt - a.updatedAt);
+      },
+
+      async save(memo) {
+        if (this.mode === 'fs') {
+          const handle = await this.dirHandle.getFileHandle(`memo-${memo.id}.md`, { create: true });
+          const writable = await handle.createWritable();
+          await writable.write(memoToMarkdown(memo));
+          await writable.close();
+          return;
+        }
+        await idbPut('memos', memo);
+      },
+
+      async remove(memo) {
+        if (this.mode === 'fs') {
+          try { await this.dirHandle.removeEntry(`memo-${memo.id}.md`); } catch (e) {}
+          return;
+        }
+        await idbDelete('memos', memo.id);
+      },
+
+      label() {
+        if (this.mode === 'fs') {
+          return `📂 フォルダ「${this.dirHandle ? this.dirHandle.name : '?'}」（.md ファイル）`;
+        }
+        return '📱 このブラウザ内（IndexedDB）';
+      },
+    };
+
+    // =========================================================
+    // 保存先セットアップ（初回ウィザード / 再接続 / 変更）
+    // =========================================================
+    async function verifyFsPermission(handle, withPrompt) {
+      const opts = { mode: 'readwrite' };
+      if (await handle.queryPermission(opts) === 'granted') return true;
+      if (withPrompt && await handle.requestPermission(opts) === 'granted') return true;
+      return false;
+    }
+
+    function showSetupWizard() {
+      if (!supportsFS) {
+        $('optFs').setAttribute('disabled', '');
+        $('fsUnsupportedNote').style.display = 'block';
+      }
+      $('setupOverlay').classList.add('show');
+    }
+
+    async function chooseIdb() {
+      storage.mode = 'idb';
+      storage.dirHandle = null;
+      localStorage.setItem('storageMode', 'idb');
+      await idbDelete('settings', 'dirHandle').catch(() => {});
+      $('setupOverlay').classList.remove('show');
+      $('reconnectOverlay').classList.remove('show');
+      showToast('ブラウザ内保存に設定しました');
+      renderList();
+    }
+
+    async function chooseFs() {
+      if (!supportsFS) return;
+      try {
+        const handle = await window.showDirectoryPicker({ mode: 'readwrite' });
+        if (!(await verifyFsPermission(handle, true))) {
+          showToast('フォルダへのアクセスが許可されませんでした');
+          return;
+        }
+        storage.mode = 'fs';
+        storage.dirHandle = handle;
+        localStorage.setItem('storageMode', 'fs');
+        await idbPut('settings', { key: 'dirHandle', handle });
+        $('setupOverlay').classList.remove('show');
+        $('reconnectOverlay').classList.remove('show');
+        showToast(`フォルダ「${handle.name}」に保存します`);
+        renderList();
+      } catch (e) {
+        // ユーザーがピッカーをキャンセル
+      }
+    }
+
+    async function initStorage() {
+      await openIDB();
+      const mode = localStorage.getItem('storageMode');
+
+      if (mode === 'fs' && supportsFS) {
+        const saved = await idbGet('settings', 'dirHandle').catch(() => null);
+        if (saved && saved.handle) {
+          storage.mode = 'fs';
+          storage.dirHandle = saved.handle;
+          // 許可はユーザー操作が必要な場合があるため、まず無音で確認
+          if (await verifyFsPermission(saved.handle, false)) {
+            return true;
+          }
+          // 再接続画面（ボタン押下 = ユーザー操作で requestPermission）
+          $('reconnectOverlay').classList.add('show');
+          return false;
+        }
+      }
+
+      if (mode === 'idb' || (mode === 'fs' && !supportsFS)) {
+        storage.mode = 'idb';
+        return true;
+      }
+
+      // 未設定 → 初回ウィザード
+      storage.mode = 'idb'; // ウィザード表示中も内部は idb で安全側に
+      showSetupWizard();
+      return false;
+    }
+
+    $('optIdb').addEventListener('click', chooseIdb);
+    $('optFs').addEventListener('click', chooseFs);
+    $('reconnectBtn').addEventListener('click', async () => {
+      if (storage.dirHandle && await verifyFsPermission(storage.dirHandle, true)) {
+        $('reconnectOverlay').classList.remove('show');
+        showToast(`フォルダ「${storage.dirHandle.name}」に再接続しました`);
+        renderList();
+      } else {
+        showToast('許可されませんでした。別の保存先を選んでください');
+      }
+    });
+    $('reconnectChangeBtn').addEventListener('click', () => {
+      $('reconnectOverlay').classList.remove('show');
+      showSetupWizard();
+    });
+
+    // ===== 設定モーダル =====
+    $('settingsBtn').addEventListener('click', async () => {
+      $('settingsStorage').textContent = storage.label();
+      $('settingsOverlay').classList.add('show');
+      $('settingsUsage').textContent = '計測中...';
+      if (navigator.storage && navigator.storage.estimate) {
+        try {
+          const est = await navigator.storage.estimate();
+          const usedMB = (est.usage / 1024 / 1024).toFixed(1);
+          const quotaMB = Math.round(est.quota / 1024 / 1024);
+          $('settingsUsage').textContent = `${usedMB} MB / 約 ${quotaMB} MB`;
+        } catch (e) {
+          $('settingsUsage').textContent = '取得できませんでした';
+        }
+      } else {
+        $('settingsUsage').textContent = '取得できませんでした';
+      }
+    });
+    $('settingsClose').addEventListener('click', () => $('settingsOverlay').classList.remove('show'));
+    $('changeStorageBtn').addEventListener('click', () => {
+      $('settingsOverlay').classList.remove('show');
+      showSetupWizard();
+    });
+
+    // =========================================================
+    // タブ切り替え
+    // =========================================================
+    let currentTab = 'memo'; // 'memo' | 'draw' | 'both'
+
+    function switchTab(tab) {
+      currentTab = tab;
+      document.querySelectorAll('.tab-btn').forEach(b => {
+        b.classList.toggle('active', b.dataset.tab === tab);
+      });
+      const memoPage = $('page-memo');
+      const drawPage = $('page-draw');
+      if (tab === 'draw') {
+        memoPage.classList.remove('active');
+        drawPage.classList.add('active');
+        $('fabBtn').classList.add('hidden');
+        requestAnimationFrame(() => drawPad.resize());
+      } else {
+        drawPage.classList.remove('active');
+        memoPage.classList.add('active');
+        // 「両方」モードのみエディタにスケッチボタンを表示
+        $('sketchBtn').style.display = (tab === 'both') ? '' : 'none';
+        updateAttachmentsVisibility();
+        if (!$('editorWrapper').classList.contains('active')) {
+          $('fabBtn').classList.remove('hidden');
+        }
+      }
+    }
+
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+    });
+
+    // =========================================================
+    // 描画パッド（描画タブ・スケッチモーダルで共用のファクトリ）
+    // =========================================================
+    function createSketchpad(canvas, colorInput, brushSelect, eraserBtn) {
+      const ctx = canvas.getContext('2d');
+      const pad = {
+        isDrawing: false,
+        lastX: 0,
+        lastY: 0,
+        history: [],
+        backgroundImage: null,
+        eraser: false,
+      };
+
+      function cssSize() {
+        const rect = canvas.getBoundingClientRect();
+        return { w: rect.width, h: rect.height };
+      }
+
+      pad.resize = function () {
+        const { w, h } = cssSize();
+        if (w === 0 || h === 0) return;
+        // リサイズ前の絵を保持
+        const prev = pad.history.length > 0 ? pad.history[pad.history.length - 1] : null;
+        canvas.width = w * devicePixelRatio;
+        canvas.height = h * devicePixelRatio;
+        ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+        pad.redrawBackground();
+        if (prev) {
+          const img = new Image();
+          img.onload = () => ctx.drawImage(img, 0, 0, w, h);
+          img.src = prev;
+        }
+      };
+
+      pad.redrawBackground = function () {
+        const { w, h } = cssSize();
+        ctx.save();
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.fillStyle = '#1a1a1a';
+        ctx.fillRect(0, 0, w, h);
+        if (pad.backgroundImage) {
+          const canvasRatio = w / h;
+          const imgRatio = pad.backgroundImage.width / pad.backgroundImage.height;
+          let dw, dh, ox, oy;
+          if (imgRatio > canvasRatio) {
+            dw = w; dh = w / imgRatio; ox = 0; oy = (h - dh) / 2;
+          } else {
+            dh = h; dw = h * imgRatio; ox = (w - dw) / 2; oy = 0;
+          }
+          ctx.drawImage(pad.backgroundImage, ox, oy, dw, dh);
+        }
+        ctx.restore();
+      };
+
+      pad.loadImage = function (file) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const img = new Image();
+          img.onload = () => {
+            pad.backgroundImage = img;
+            pad.history = [];
+            pad.redrawBackground();
+          };
+          img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+      };
+
+      pad.clear = function () {
+        pad.history = [];
+        pad.redrawBackground();
+      };
+
+      pad.undo = function () {
+        if (pad.history.length === 0) return;
+        pad.history.pop();
+        pad.redrawBackground();
+        if (pad.history.length > 0) {
+          const { w, h } = cssSize();
+          const img = new Image();
+          img.onload = () => {
+            ctx.save();
+            ctx.globalCompositeOperation = 'source-over';
+            ctx.drawImage(img, 0, 0, w, h);
+            ctx.restore();
+          };
+          img.src = pad.history[pad.history.length - 1];
+        }
+      };
+
+      pad.toDataURL = () => canvas.toDataURL('image/png');
+      pad.hasContent = () => pad.history.length > 0 || pad.backgroundImage !== null;
+
+      function pointerPos(e) {
+        const rect = canvas.getBoundingClientRect();
+        const src = e.touches ? e.touches[0] : e;
+        return { x: src.clientX - rect.left, y: src.clientY - rect.top };
+      }
+
+      function start(e) {
+        pad.isDrawing = true;
+        const p = pointerPos(e);
+        pad.lastX = p.x;
+        pad.lastY = p.y;
+      }
+
+      function move(e) {
+        if (!pad.isDrawing) return;
+        e.preventDefault();
+        const p = pointerPos(e);
+        ctx.strokeStyle = colorInput.value;
+        // 消しゴムは背景色で塗る（背景画像がある場合も背景ごと消さないよう背景色描画）
+        if (pad.eraser) {
+          ctx.strokeStyle = '#1a1a1a';
+          ctx.lineWidth = parseInt(brushSelect.value) * 3;
+        } else {
+          ctx.lineWidth = parseInt(brushSelect.value);
+        }
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.beginPath();
+        ctx.moveTo(pad.lastX, pad.lastY);
+        ctx.lineTo(p.x, p.y);
+        ctx.stroke();
+        pad.lastX = p.x;
+        pad.lastY = p.y;
+      }
+
+      function end() {
+        if (pad.isDrawing) pad.history.push(canvas.toDataURL());
+        pad.isDrawing = false;
+      }
+
+      canvas.addEventListener('mousedown', start);
+      canvas.addEventListener('mousemove', move);
+      canvas.addEventListener('mouseup', end);
+      canvas.addEventListener('mouseout', end);
+      canvas.addEventListener('touchstart', (e) => { e.preventDefault(); start(e); });
+      canvas.addEventListener('touchmove', move);
+      canvas.addEventListener('touchend', end);
+
+      if (eraserBtn) {
+        eraserBtn.addEventListener('click', () => {
+          pad.eraser = !pad.eraser;
+          eraserBtn.classList.toggle('toggled', pad.eraser);
+        });
+      }
+
+      return pad;
+    }
+
+    // --- 描画タブのパッド ---
+    const drawPad = createSketchpad($('drawCanvas'), $('drawColor'), $('drawBrush'), $('drawEraser'));
+
+    $('drawUndo').addEventListener('click', () => drawPad.undo());
+    $('drawClear').addEventListener('click', () => {
+      if (confirm('描いた内容を消去しますか？（背景画像は残ります）')) drawPad.clear();
+    });
+    $('drawDownload').addEventListener('click', () => {
+      const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
+      const link = document.createElement('a');
+      link.href = drawPad.toDataURL();
+      link.download = `drawing-${timestamp}.png`;
+      link.click();
+    });
+    $('drawUpload').addEventListener('click', () => $('drawImageInput').click());
+    $('drawImageInput').addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (file) drawPad.loadImage(file);
+      e.target.value = '';
+    });
+
+    window.addEventListener('resize', () => {
+      if (currentTab === 'draw') drawPad.resize();
+    });
+
+    // --- スケッチモーダルのパッド ---
+    const sketchPad = createSketchpad($('sketchCanvas'), $('sketchColor'), $('sketchBrush'), $('sketchEraser'));
+
+    $('sketchUndo').addEventListener('click', () => sketchPad.undo());
+    $('sketchClear').addEventListener('click', () => sketchPad.clear());
+    $('sketchCancel').addEventListener('click', () => $('sketchOverlay').classList.remove('show'));
+
+    $('sketchBtn').addEventListener('click', () => {
+      $('sketchOverlay').classList.add('show');
+      sketchPad.backgroundImage = null;
+      requestAnimationFrame(() => {
+        sketchPad.resize();
+        sketchPad.clear();
+      });
+    });
+
+    $('sketchInsert').addEventListener('click', () => {
+      if (!currentMemo) return;
+      if (!sketchPad.hasContent()) {
+        showToast('何か描いてから挿入してください');
+        return;
+      }
+      if (!currentMemo.images) currentMemo.images = [];
+      currentMemo.images.push({ id: Date.now(), dataUrl: sketchPad.toDataURL() });
+      $('sketchOverlay').classList.remove('show');
+      renderAttachments();
+      showToast('スケッチを添付しました');
+    });
+
+    // =========================================================
+    // メモ機能
+    // =========================================================
+    let currentMemo = null;
+
+    function formatDate(timestamp) {
+      const date = new Date(timestamp);
+      const today = new Date();
+      const yesterday = new Date(today);
+      yesterday.setDate(yesterday.getDate() - 1);
+      if (date.toDateString() === today.toDateString()) {
+        return date.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
+      } else if (date.toDateString() === yesterday.toDateString()) {
+        return '昨日';
+      }
+      return date.toLocaleDateString('ja-JP', { month: 'short', day: 'numeric' });
+    }
+
+    function getPreview(content) {
+      return content.replace(/[#*_`\n]/g, '').substring(0, 40) + (content.length > 40 ? '...' : '');
+    }
+
+    async function renderList() {
+      let memos;
+      try {
+        memos = await storage.getAll();
+      } catch (e) {
+        console.error('load failed:', e);
+        showToast('メモの読み込みに失敗しました');
+        return;
+      }
+      const list = $('memoList');
+      const emptyState = $('emptyState');
+      $('memoCount').textContent = `${memos.length} 件`;
+
+      if (memos.length === 0) {
+        list.innerHTML = '';
+        emptyState.style.display = 'flex';
+        return;
+      }
+
+      emptyState.style.display = 'none';
+      list.innerHTML = memos.map(memo => `
+        <li class="memo-item" data-id="${memo.id}">
+          <div class="memo-title">${memo.images && memo.images.length ? '<span class="memo-badge">🎨' + memo.images.length + '</span>' : ''}${escapeHtml(memo.title)}</div>
+          <div class="memo-preview">${escapeHtml(getPreview(memo.content)) || '（空）'}</div>
+          <div class="memo-date">${formatDate(memo.updatedAt)}</div>
+        </li>
+      `).join('');
+
+      list.querySelectorAll('.memo-item').forEach(item => {
+        item.addEventListener('click', () => openMemo(parseInt(item.dataset.id)));
+      });
+    }
+
+    function updateAttachmentsVisibility() {
+      const strip = $('attachments');
+      const show = currentTab === 'both' && currentMemo;
+      strip.classList.toggle('visible', !!show);
+    }
+
+    function renderAttachments() {
+      const strip = $('attachments');
+      if (!currentMemo) { strip.innerHTML = ''; return; }
+      const images = currentMemo.images || [];
+      strip.innerHTML = images.map((img, i) => `
+        <div class="attachment-thumb" data-idx="${i}">
+          <img src="${img.dataUrl}" alt="スケッチ${i + 1}">
+          <button class="att-del" data-idx="${i}">✕</button>
+        </div>
+      `).join('') + `
+        <button class="sketch-add-btn" id="attAddBtn"><span>📐</span>追加</button>
+      `;
+
+      strip.querySelectorAll('.att-del').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const idx = parseInt(btn.dataset.idx);
+          if (!confirm('このスケッチを削除しますか？')) return;
+          currentMemo.images.splice(idx, 1);
+          renderAttachments();
+        });
+      });
+      strip.querySelectorAll('.attachment-thumb img').forEach(img => {
+        img.addEventListener('click', () => {
+          // タップで拡大表示（新規タブ or 画像ビュー）
+          const w = window.open('');
+          if (w) w.document.write(`<body style="margin:0;background:#111;display:flex;align-items:center;justify-content:center;min-height:100vh;"><img src="${img.src}" style="max-width:100%;max-height:100vh;"></body>`);
+        });
+      });
+      const addBtn = $('attAddBtn');
+      if (addBtn) addBtn.addEventListener('click', () => $('sketchBtn').click());
+      updateAttachmentsVisibility();
+    }
+
+    function showListView() {
+      $('listView').classList.remove('hidden');
+      $('editorWrapper').classList.remove('active');
+      $('editorHeader').style.display = 'none';
+      $('editorContainer').style.display = 'none';
+      $('fabBtn').classList.remove('hidden');
+      currentMemo = null;
+      renderList();
+    }
+
+    function showEditorView() {
+      $('listView').classList.add('hidden');
+      $('editorWrapper').classList.add('active');
+      $('editorHeader').style.display = 'block';
+      $('editorContainer').style.display = 'flex';
+      $('fabBtn').classList.add('hidden');
+      renderAttachments();
+    }
+
+    async function createNewMemo() {
+      const newMemo = {
+        id: Date.now(),
+        title: '新規メモ',
+        content: '',
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+        images: [],
+      };
+      try {
+        await storage.save(newMemo);
+      } catch (e) {
+        showToast('保存に失敗しました: ' + e.message);
+        return;
+      }
+      currentMemo = newMemo;
+      $('titleInput').value = newMemo.title;
+      $('contentInput').value = '';
+      updateEditorMeta();
+      showEditorView();
+    }
+
+    async function openMemo(id) {
+      const memos = await storage.getAll();
+      const memo = memos.find(m => m.id === id);
+      if (!memo) return;
+      currentMemo = memo;
+      $('titleInput').value = memo.title;
+      $('contentInput').value = memo.content;
+      updateEditorMeta();
+      showEditorView();
+    }
+
+    async function saveCurrentMemo() {
+      if (!currentMemo) return;
+      currentMemo.title = $('titleInput').value || '新規メモ';
+      currentMemo.content = $('contentInput').value;
+      currentMemo.updatedAt = Date.now();
+      try {
+        await storage.save(currentMemo);
+      } catch (e) {
+        showToast('保存に失敗しました: ' + e.message);
+        return;
+      }
+      showListView();
+    }
+
+    async function deleteCurrentMemo() {
+      if (!currentMemo) return;
+      if (!confirm('このメモを削除しますか？')) return;
+      await storage.remove(currentMemo);
+      showListView();
+    }
+
+    function downloadCurrentMemo() {
+      if (!currentMemo) return;
+      const title = $('titleInput').value || '無題';
+      let content = $('contentInput').value;
+      // 添付スケッチも Markdown 画像として同梱
+      if (currentMemo.images && currentMemo.images.length > 0) {
+        content += `\n\n`;
+        currentMemo.images.forEach((img, i) => {
+          content += `![スケッチ${i + 1}](${img.dataUrl})\n`;
+        });
+      }
+      const filename = `${title.replace(/[\\/:*?"<>|]/g, '_')}.md`;
+      const blob = new Blob([content], { type: 'text/markdown;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      a.style.display = 'none';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+
+    function updateEditorMeta() {
+      if (!currentMemo) return;
+      const createdDate = new Date(currentMemo.createdAt).toLocaleString('ja-JP');
+      $('editorMeta').textContent = `作成: ${createdDate}`;
+    }
+
+    $('fabBtn').addEventListener('click', createNewMemo);
+    $('saveBtn').addEventListener('click', saveCurrentMemo);
+    $('downloadBtn').addEventListener('click', downloadCurrentMemo);
+    $('deleteBtn').addEventListener('click', deleteCurrentMemo);
+
+    // ===== ブックマーク案内 =====
+    $('installBtn').addEventListener('click', () => {
       let steps;
       if (isIOS) {
         steps = [
@@ -694,252 +1701,29 @@
           '保存先フォルダを確認して「完了」をクリック',
         ];
       }
-      guideSteps.innerHTML = steps.map(s => `<li>${s}</li>`).join('');
-      guideOverlay.classList.add('show');
-    }
-
-    installBtn.addEventListener('click', showGuide);
-
-    guideClose.addEventListener('click', () => {
-      guideOverlay.classList.remove('show');
+      $('guideSteps').innerHTML = steps.map(s => `<li>${s}</li>`).join('');
+      $('guideOverlay').classList.add('show');
     });
-    guideOverlay.addEventListener('click', (e) => {
-      if (e.target === guideOverlay) guideOverlay.classList.remove('show');
+    $('guideClose').addEventListener('click', () => $('guideOverlay').classList.remove('show'));
+    $('guideOverlay').addEventListener('click', (e) => {
+      if (e.target === $('guideOverlay')) $('guideOverlay').classList.remove('show');
     });
 
-    // ===== IndexedDB 管理 =====
-    let db = null;
-
-    function initDB() {
-      return new Promise((resolve, reject) => {
-        const request = indexedDB.open('MemoApp', 1);
-
-        request.onerror = () => reject(request.error);
-        request.onsuccess = () => {
-          db = request.result;
-          resolve(db);
-        };
-
-        request.onupgradeneeded = (e) => {
-          const database = e.target.result;
-          if (!database.objectStoreNames.contains('memos')) {
-            database.createObjectStore('memos', { keyPath: 'id' });
-          }
-        };
-      });
-    }
-
-    function getAllMemos() {
-      return new Promise((resolve, reject) => {
-        const transaction = db.transaction(['memos'], 'readonly');
-        const store = transaction.objectStore('memos');
-        const request = store.getAll();
-
-        request.onerror = () => reject(request.error);
-        request.onsuccess = () => {
-          const sorted = request.result.sort((a, b) => b.updatedAt - a.updatedAt);
-          resolve(sorted);
-        };
-      });
-    }
-
-    function saveMemo(memo) {
-      return new Promise((resolve, reject) => {
-        const transaction = db.transaction(['memos'], 'readwrite');
-        const store = transaction.objectStore('memos');
-        const request = store.put(memo);
-
-        request.onerror = () => reject(request.error);
-        request.onsuccess = () => resolve(request.result);
-      });
-    }
-
-    function deleteMemo(id) {
-      return new Promise((resolve, reject) => {
-        const transaction = db.transaction(['memos'], 'readwrite');
-        const store = transaction.objectStore('memos');
-        const request = store.delete(id);
-
-        request.onerror = () => reject(request.error);
-        request.onsuccess = () => resolve();
-      });
-    }
-
-    // ===== UI 管理 =====
-    let currentMemo = null;
-
-    function formatDate(timestamp) {
-      const date = new Date(timestamp);
-      const today = new Date();
-      const yesterday = new Date(today);
-      yesterday.setDate(yesterday.getDate() - 1);
-
-      if (date.toDateString() === today.toDateString()) {
-        return date.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
-      } else if (date.toDateString() === yesterday.toDateString()) {
-        return '昨日';
-      } else {
-        return date.toLocaleDateString('ja-JP', { month: 'short', day: 'numeric' });
-      }
-    }
-
-    function getPreview(content) {
-      return content.replace(/[#*_`\n]/g, '').substring(0, 40) + (content.length > 40 ? '...' : '');
-    }
-
-    function escapeHtml(str) {
-      return String(str)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;');
-    }
-
-    async function renderList() {
-      const memos = await getAllMemos();
-      const list = document.getElementById('memoList');
-      const emptyState = document.getElementById('emptyState');
-      const count = document.getElementById('memoCount');
-
-      count.textContent = `${memos.length} 件`;
-
-      if (memos.length === 0) {
-        list.innerHTML = '';
-        emptyState.style.display = 'flex';
-        return;
-      }
-
-      emptyState.style.display = 'none';
-      list.innerHTML = memos.map(memo => `
-        <li class="memo-item" data-id="${memo.id}">
-          <div class="memo-title">${escapeHtml(memo.title)}</div>
-          <div class="memo-preview">${escapeHtml(getPreview(memo.content)) || '（空）'}</div>
-          <div class="memo-date">${formatDate(memo.updatedAt)}</div>
-        </li>
-      `).join('');
-
-      list.querySelectorAll('.memo-item').forEach(item => {
-        item.addEventListener('click', () => openMemo(parseInt(item.dataset.id)));
-      });
-    }
-
-    // 表示切り替え。モバイルではリスト⇄エディタを切り替え、
-    // タブレット（768px〜）では CSS 側でリスト・fab が常時表示になる
-    function showListView() {
-      document.getElementById('listView').classList.remove('hidden');
-      document.getElementById('editorWrapper').classList.remove('active');
-      document.getElementById('editorHeader').style.display = 'none';
-      document.getElementById('editorContainer').classList.remove('active');
-      document.getElementById('fabBtn').classList.remove('hidden');
-      renderList();
-    }
-
-    function showEditorView() {
-      document.getElementById('listView').classList.add('hidden');
-      document.getElementById('editorWrapper').classList.add('active');
-      document.getElementById('editorHeader').style.display = 'block';
-      document.getElementById('editorContainer').classList.add('active');
-      document.getElementById('fabBtn').classList.add('hidden');
-    }
-
-    async function createNewMemo() {
-      const newMemo = {
-        id: Date.now(),
-        title: '新規メモ',
-        content: '',
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
-      };
-
-      await saveMemo(newMemo);
-      currentMemo = newMemo;
-      document.getElementById('titleInput').value = newMemo.title;
-      document.getElementById('contentInput').value = newMemo.content;
-      updateEditorMeta();
-      showEditorView();
-    }
-
-    async function openMemo(id) {
-      const memos = await getAllMemos();
-      const memo = memos.find(m => m.id === id);
-      if (!memo) return;
-
-      currentMemo = memo;
-      document.getElementById('titleInput').value = memo.title;
-      document.getElementById('contentInput').value = memo.content;
-      updateEditorMeta();
-      showEditorView();
-    }
-
-    async function saveCurrentMemo() {
-      if (!currentMemo) return;
-
-      currentMemo.title = document.getElementById('titleInput').value || '新規メモ';
-      currentMemo.content = document.getElementById('contentInput').value;
-      currentMemo.updatedAt = Date.now();
-
-      await saveMemo(currentMemo);
-      showListView();
-    }
-
-    async function deleteCurrentMemo() {
-      if (!currentMemo) return;
-      if (!confirm('このメモを削除しますか？')) return;
-
-      await deleteMemo(currentMemo.id);
-      currentMemo = null;
-      showListView();
-    }
-
-    function downloadCurrentMemo() {
-      if (!currentMemo) return;
-
-      // 未保存の編集内容もそのままダウンロードする
-      const title = document.getElementById('titleInput').value || '無題';
-      const content = document.getElementById('contentInput').value;
-      // ファイル名に使えない文字を除去
-      const filename = `${title.replace(/[\\/:*?"<>|]/g, '_')}.md`;
-
-      const blob = new Blob([content], { type: 'text/markdown;charset=utf-8' });
-      const url = URL.createObjectURL(blob);
-      const element = document.createElement('a');
-      element.href = url;
-      element.download = filename;
-      element.style.display = 'none';
-      document.body.appendChild(element);
-      element.click();
-      document.body.removeChild(element);
-      setTimeout(() => URL.revokeObjectURL(url), 1000);
-    }
-
-    function updateEditorMeta() {
-      if (!currentMemo) return;
-      const meta = document.getElementById('editorMeta');
-      const createdDate = new Date(currentMemo.createdAt).toLocaleString('ja-JP');
-      meta.textContent = `作成: ${createdDate}`;
-    }
-
-    // ===== イベントリスナー =====
-    document.getElementById('fabBtn').addEventListener('click', createNewMemo);
-    document.getElementById('saveBtn').addEventListener('click', saveCurrentMemo);
-    document.getElementById('downloadBtn').addEventListener('click', downloadCurrentMemo);
-    document.getElementById('deleteBtn').addEventListener('click', deleteCurrentMemo);
-
-    // URL パラメータ処理
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('action') === 'new') {
-      initDB().then(() => {
-        createNewMemo();
-      });
-    } else {
-      // ===== 初期化 =====
-      initDB().then(() => {
-        renderList();
-      }).catch(err => {
-        console.error('DB init failed:', err);
+    // ===== 初期化 =====
+    (async () => {
+      try {
+        const ready = await initStorage();
+        const params = new URLSearchParams(window.location.search);
+        if (ready && params.get('action') === 'new') {
+          await createNewMemo();
+        } else {
+          await renderList();
+        }
+      } catch (err) {
+        console.error('init failed:', err);
         alert('ストレージの初期化に失敗しました。ブラウザの設定を確認してください。');
-      });
-    }
+      }
+    })();
   </script>
 </body>
 </html>
