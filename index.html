@@ -1791,8 +1791,12 @@
       renderAttachments();
     }
 
-    async function createNewMemo() {
-      const newMemo = {
+    function createNewMemo() {
+      // ここでは保存先に書き込まない。編集画面は必ず開き、
+      // 実際の保存は「保存」ボタン押下時（saveCurrentMemo）に行う。
+      // こうすることで保存先の不調（フォルダ権限切れ等）が
+      // 新規作成そのものをブロックしないようにする。
+      currentMemo = {
         id: Date.now(),
         title: '新規メモ',
         content: '',
@@ -1800,14 +1804,7 @@
         updatedAt: Date.now(),
         images: [],
       };
-      try {
-        await storage.save(newMemo);
-      } catch (e) {
-        showToast('保存に失敗しました: ' + e.message);
-        return;
-      }
-      currentMemo = newMemo;
-      $('titleInput').value = newMemo.title;
+      $('titleInput').value = currentMemo.title;
       $('contentInput').value = '';
       updateEditorMeta();
       showEditorView();
