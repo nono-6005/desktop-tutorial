@@ -457,6 +457,46 @@
       margin-right: 0.4rem;
     }
 
+    /* 複数選択モード */
+    .memo-item .memo-check {
+      display: none;
+      flex-shrink: 0;
+      width: 1.4rem;
+      height: 1.4rem;
+      border: 2px solid #666;
+      border-radius: 50%;
+      margin-right: 0.75rem;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.8rem;
+      color: transparent;
+    }
+
+    .memo-list.selecting .memo-item {
+      display: flex;
+      align-items: center;
+    }
+
+    .memo-list.selecting .memo-check {
+      display: flex;
+    }
+
+    .memo-item.selected {
+      background: rgba(217, 119, 87, 0.12);
+      border-left-color: #d97757;
+    }
+
+    .memo-item.selected .memo-check {
+      background: #d97757;
+      border-color: #d97757;
+      color: white;
+    }
+
+    .memo-item .memo-body {
+      flex: 1;
+      min-width: 0;
+    }
+
     .empty-state {
       display: flex;
       flex-direction: column;
@@ -834,12 +874,26 @@
         <!-- リスト -->
         <div class="list-view" id="listView">
           <div class="header">
-            <div class="header-list">
+            <div class="header-list" id="listHeaderNormal">
               <div>
                 <h1>メモ</h1>
                 <p class="header-count" id="memoCount">0 件</p>
               </div>
-              <button id="installBtn" class="install-btn">🔖 ブックマーク</button>
+              <div style="display: flex; gap: 0.4rem; align-items: center;">
+                <button id="selectModeBtn" class="install-btn" style="background: #2a2a2a; border: 1px solid #444;">☑ 選択</button>
+                <button id="installBtn" class="install-btn">🔖 ブックマーク</button>
+              </div>
+            </div>
+            <div class="header-list" id="listHeaderSelect" style="display: none;">
+              <div>
+                <h1 style="font-size: 1.1rem;">選択中</h1>
+                <p class="header-count" id="selectCount">0 件</p>
+              </div>
+              <div style="display: flex; gap: 0.4rem; align-items: center;">
+                <button id="selectAllBtn" class="install-btn" style="background: #2a2a2a; border: 1px solid #444;">全選択</button>
+                <button id="selectDeleteBtn" class="install-btn" style="background: #7a2e22;">🗑 削除</button>
+                <button id="selectCancelBtn" class="install-btn" style="background: #2a2a2a; border: 1px solid #444;">✕</button>
+              </div>
             </div>
           </div>
           <div class="content">
@@ -1780,6 +1834,81 @@
       return content.replace(/[#*_`\n]/g, '').substring(0, 40) + (content.length > 40 ? '...' : '');
     }
 
+    // ===== 複数選択モード =====
+    let selectionMode = false;
+    const selectedIds = new Set();
+
+    function updateSelectionHeader() {
+      $('selectCount').textContent = `${selectedIds.size} 件`;
+      $('listHeaderNormal').style.display = selectionMode ? 'none' : 'flex';
+      $('listHeaderSelect').style.display = selectionMode ? 'flex' : 'none';
+      $('memoList').classList.toggle('selecting', selectionMode);
+    }
+
+    function enterSelectionMode() {
+      selectionMode = true;
+      selectedIds.clear();
+      updateSelectionHeader();
+    }
+
+    function exitSelectionMode() {
+      selectionMode = false;
+      selectedIds.clear();
+      updateSelectionHeader();
+      document.querySelectorAll('.memo-item.selected').forEach(el => el.classList.remove('selected'));
+    }
+
+    function toggleSelection(item) {
+      const id = parseInt(item.dataset.id);
+      if (selectedIds.has(id)) {
+        selectedIds.delete(id);
+        item.classList.remove('selected');
+      } else {
+        selectedIds.add(id);
+        item.classList.add('selected');
+      }
+      updateSelectionHeader();
+    }
+
+    async function deleteSelectedMemos() {
+      if (selectedIds.size === 0) {
+        showToast('削除するメモを選択してください');
+        return;
+      }
+      if (!confirm(`選択した ${selectedIds.size} 件のメモを削除しますか？`)) return;
+      let failed = 0;
+      for (const id of selectedIds) {
+        try {
+          await storage.remove({ id });
+        } catch (e) {
+          failed++;
+        }
+      }
+      const deleted = selectedIds.size - failed;
+      exitSelectionMode();
+      await renderList();
+      showToast(failed > 0 ? `${deleted} 件削除（${failed} 件失敗）` : `${deleted} 件削除しました`);
+    }
+
+    $('selectModeBtn').addEventListener('click', enterSelectionMode);
+    $('selectCancelBtn').addEventListener('click', exitSelectionMode);
+    $('selectDeleteBtn').addEventListener('click', deleteSelectedMemos);
+    $('selectAllBtn').addEventListener('click', () => {
+      const items = document.querySelectorAll('.memo-item');
+      const allSelected = selectedIds.size === items.length && items.length > 0;
+      items.forEach(item => {
+        const id = parseInt(item.dataset.id);
+        if (allSelected) {
+          selectedIds.delete(id);
+          item.classList.remove('selected');
+        } else {
+          selectedIds.add(id);
+          item.classList.add('selected');
+        }
+      });
+      updateSelectionHeader();
+    });
+
     async function renderList() {
       let memos;
       try {
@@ -1796,20 +1925,31 @@
       if (memos.length === 0) {
         list.innerHTML = '';
         emptyState.style.display = 'flex';
+        if (selectionMode) exitSelectionMode();
         return;
       }
 
       emptyState.style.display = 'none';
       list.innerHTML = memos.map(memo => `
-        <li class="memo-item" data-id="${memo.id}">
-          <div class="memo-title">${memo.images && memo.images.length ? '<span class="memo-badge">🎨' + memo.images.length + '</span>' : ''}${escapeHtml(memo.title)}</div>
-          <div class="memo-preview">${escapeHtml(getPreview(memo.content)) || '（空）'}</div>
-          <div class="memo-date">${formatDate(memo.updatedAt)}</div>
+        <li class="memo-item${selectedIds.has(memo.id) ? ' selected' : ''}" data-id="${memo.id}">
+          <span class="memo-check">✓</span>
+          <div class="memo-body">
+            <div class="memo-title">${memo.images && memo.images.length ? '<span class="memo-badge">🎨' + memo.images.length + '</span>' : ''}${escapeHtml(memo.title)}</div>
+            <div class="memo-preview">${escapeHtml(getPreview(memo.content)) || '（空）'}</div>
+            <div class="memo-date">${formatDate(memo.updatedAt)}</div>
+          </div>
         </li>
       `).join('');
+      list.classList.toggle('selecting', selectionMode);
 
       list.querySelectorAll('.memo-item').forEach(item => {
-        item.addEventListener('click', () => openMemo(parseInt(item.dataset.id)));
+        item.addEventListener('click', () => {
+          if (selectionMode) {
+            toggleSelection(item);
+          } else {
+            openMemo(parseInt(item.dataset.id));
+          }
+        });
       });
     }
 
