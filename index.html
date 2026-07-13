@@ -971,6 +971,24 @@
     <!-- トースト -->
     <div class="toast" id="toast"></div>
 
+    <!-- ===== 保存先選択ウィザード ===== -->
+    <div class="overlay" id="setupOverlay">
+      <div class="modal">
+        <h2>メモの保存先を選択</h2>
+        <p class="desc">あとから設定（⚙️）でいつでも変更できます。</p>
+        <button class="storage-option" id="optIdb">
+          <div class="so-title">📱 このブラウザ内</div>
+          <div class="so-desc">ブラウザのローカルストレージ（IndexedDB）に保存。設定不要ですぐ使えます。この端末・このブラウザ専用。</div>
+        </button>
+        <button class="storage-option" id="optFs">
+          <div class="so-title">📂 フォルダを選んで保存</div>
+          <div class="so-desc">端末内のフォルダ（SD カード・USB ドライブ含む）に .md ファイルとして保存。ファイルアプリから直接見られます。書き込めない場合は自動でブラウザ内に保存されます。</div>
+        </button>
+        <p class="desc" id="fsUnsupportedNote" style="display: none; color: #b4783c;">※ このブラウザはフォルダ保存（File System Access API）に未対応のため、ブラウザ内保存のみ利用できます。</p>
+        <button class="modal-btn secondary" id="setupClose">閉じる</button>
+      </div>
+    </div>
+
     <!-- ===== 保存繰り返し失敗時の復旧案内 ===== -->
     <div class="overlay" id="saveFailOverlay">
       <div class="modal">
@@ -999,6 +1017,7 @@
           <div class="label">ストレージ使用量</div>
           <div class="value" id="settingsUsage">計測中...</div>
         </div>
+        <button class="modal-btn" id="changeStorageBtn">メモの保存先を変更</button>
         <button class="modal-btn secondary" id="settingsClose">閉じる</button>
       </div>
     </div>
@@ -1196,32 +1215,205 @@
       }));
     }
 
-    // --- メモの保存機能（旧メモアプリと同じ、ブラウザ内 IndexedDB 固定） ---
-    // 描画の保存（drawings ストア）とは独立した保存系。
+    // --- メモの保存機能（描画の保存＝drawings ストアとは独立） ---
+    // 既定はブラウザ内（IndexedDB）固定。設定から「フォルダ保存」も選択可能。
+    // フォルダへの書き込みが失敗する端末でも保存自体は失敗させず、
+    // 自動的にブラウザ内へ退避してから getAll でマージ表示する。
+    const supportsFS = 'showDirectoryPicker' in window;
+
+    async function verifyFsPermission(handle, withPrompt) {
+      const opts = { mode: 'readwrite' };
+      if (await handle.queryPermission(opts) === 'granted') return true;
+      if (withPrompt && await handle.requestPermission(opts) === 'granted') return true;
+      return false;
+    }
+
+    const ATTACH_MARKER = '<!-- attachments -->';
+
+    function memoToMarkdown(memo) {
+      let md = '---\n';
+      md += `title: ${memo.title.replace(/\n/g, ' ')}\n`;
+      md += `created: ${memo.createdAt}\n`;
+      md += `updated: ${memo.updatedAt}\n`;
+      md += '---\n';
+      md += memo.content;
+      if (memo.images && memo.images.length > 0) {
+        md += `\n\n${ATTACH_MARKER}\n`;
+        memo.images.forEach((img, i) => {
+          md += `![sketch-${i + 1}](${img.dataUrl})\n`;
+        });
+      }
+      return md;
+    }
+
+    function markdownToMemo(text, fileId) {
+      const memo = { id: fileId, title: '無題', content: '', createdAt: Date.now(), updatedAt: Date.now(), images: [] };
+      let body = text;
+      const fmMatch = text.match(/^---\n([\s\S]*?)\n---\n?/);
+      if (fmMatch) {
+        body = text.slice(fmMatch[0].length);
+        fmMatch[1].split('\n').forEach(line => {
+          const idx = line.indexOf(':');
+          if (idx < 0) return;
+          const key = line.slice(0, idx).trim();
+          const val = line.slice(idx + 1).trim();
+          if (key === 'title') memo.title = val || '無題';
+          if (key === 'created') memo.createdAt = parseInt(val) || memo.createdAt;
+          if (key === 'updated') memo.updatedAt = parseInt(val) || memo.updatedAt;
+        });
+      }
+      const markerIdx = body.indexOf(ATTACH_MARKER);
+      if (markerIdx >= 0) {
+        const attachPart = body.slice(markerIdx);
+        body = body.slice(0, markerIdx).replace(/\n+$/, '');
+        const re = /!\[[^\]]*\]\((data:image\/[^)]+)\)/g;
+        let m;
+        while ((m = re.exec(attachPart)) !== null) {
+          memo.images.push({ id: memo.images.length + 1, dataUrl: m[1] });
+        }
+      }
+      memo.content = body;
+      return memo;
+    }
+
     const storage = {
+      mode: 'idb', // 'idb' | 'fs'
+      dirHandle: null,
+
       async getAll() {
+        if (this.mode === 'fs' && this.dirHandle) {
+          const memos = [];
+          try {
+            for await (const entry of this.dirHandle.values()) {
+              if (entry.kind !== 'file' || !entry.name.endsWith('.md')) continue;
+              const idMatch = entry.name.match(/^memo-(\d+)\.md$/);
+              if (!idMatch) continue;
+              try {
+                const file = await entry.getFile();
+                const text = await file.text();
+                memos.push(markdownToMemo(text, parseInt(idMatch[1])));
+              } catch (e) { /* 読めないファイルはスキップ */ }
+            }
+          } catch (e) {
+            console.log('folder read failed:', e.message);
+          }
+          // フォルダに書けなかった時の退避分（ブラウザ内）もマージ表示。
+          // 同じ id が両方にある場合は更新が新しい方を採用。
+          try {
+            const local = await idbGetAll('memos');
+            for (const m of local) {
+              const idx = memos.findIndex(x => x.id === m.id);
+              if (idx < 0) {
+                memos.push(m);
+              } else if (m.updatedAt > memos[idx].updatedAt) {
+                memos[idx] = m;
+              }
+            }
+          } catch (e) { /* noop */ }
+          return memos.sort((a, b) => b.updatedAt - a.updatedAt);
+        }
         const all = await idbGetAll('memos');
         return all.sort((a, b) => b.updatedAt - a.updatedAt);
       },
 
       async save(memo) {
+        if (this.mode === 'fs' && this.dirHandle) {
+          try {
+            const handle = await this.dirHandle.getFileHandle(`memo-${memo.id}.md`, { create: true });
+            const writable = await handle.createWritable();
+            await writable.write(memoToMarkdown(memo));
+            await writable.close();
+            await idbDelete('memos', memo.id).catch(() => {});
+            return;
+          } catch (e) {
+            console.log('folder write failed, falling back to IndexedDB:', e.message);
+            await idbPut('memos', memo);
+            showToast('フォルダに書き込めないため、ブラウザ内に保存しました');
+            return;
+          }
+        }
         await idbPut('memos', memo);
       },
 
       async remove(memo) {
+        if (this.mode === 'fs' && this.dirHandle) {
+          try { await this.dirHandle.removeEntry(`memo-${memo.id}.md`); } catch (e) {}
+          await idbDelete('memos', memo.id).catch(() => {});
+          return;
+        }
         await idbDelete('memos', memo.id);
       },
 
       label() {
+        if (this.mode === 'fs' && this.dirHandle) {
+          return `📂 フォルダ「${this.dirHandle.name}」（.md ファイル）`;
+        }
         return '📱 このブラウザ内（IndexedDB）';
       },
     };
 
+    function showSetupWizard() {
+      if (!supportsFS) {
+        $('optFs').setAttribute('disabled', '');
+        $('fsUnsupportedNote').style.display = 'block';
+      }
+      $('setupOverlay').classList.add('show');
+    }
+
+    async function chooseIdb() {
+      storage.mode = 'idb';
+      storage.dirHandle = null;
+      localStorage.setItem('storageMode', 'idb');
+      await idbDelete('settings', 'dirHandle').catch(() => {});
+      $('setupOverlay').classList.remove('show');
+      showToast('ブラウザ内保存に設定しました');
+      renderList();
+    }
+
+    async function chooseFs() {
+      if (!supportsFS) return;
+      try {
+        const handle = await window.showDirectoryPicker({ mode: 'readwrite' });
+        if (!(await verifyFsPermission(handle, true))) {
+          showToast('フォルダへのアクセスが許可されませんでした');
+          return;
+        }
+        storage.mode = 'fs';
+        storage.dirHandle = handle;
+        localStorage.setItem('storageMode', 'fs');
+        await idbPut('settings', { key: 'dirHandle', handle });
+        $('setupOverlay').classList.remove('show');
+        showToast(`フォルダ「${handle.name}」に保存します（書き込めない場合は自動でブラウザ内に保存）`);
+        renderList();
+      } catch (e) {
+        // ユーザーがピッカーをキャンセル
+      }
+    }
+
     async function initStorage() {
       await openIDB();
       await migrateFromOldDB();
+      const mode = localStorage.getItem('storageMode');
+
+      if (mode === 'fs' && supportsFS) {
+        const saved = await idbGet('settings', 'dirHandle').catch(() => null);
+        if (saved && saved.handle) {
+          storage.mode = 'fs';
+          storage.dirHandle = saved.handle;
+          // 権限確認は無音で行い、取れなくても getAll/save が
+          // ブラウザ内退避へ自動フォールバックするのでブロックしない
+          await verifyFsPermission(saved.handle, false).catch(() => false);
+          return true;
+        }
+      }
+      storage.mode = 'idb';
       return true;
     }
+
+    // ===== 保存先選択ウィザード =====
+    $('optIdb').addEventListener('click', chooseIdb);
+    $('optFs').addEventListener('click', chooseFs);
+    $('setupClose').addEventListener('click', () => $('setupOverlay').classList.remove('show'));
 
     // ===== 保存繰り返し失敗時の復旧モーダル =====
     $('saveFailDownload').addEventListener('click', () => {
@@ -1254,6 +1446,10 @@
       }
     });
     $('settingsClose').addEventListener('click', () => $('settingsOverlay').classList.remove('show'));
+    $('changeStorageBtn').addEventListener('click', () => {
+      $('settingsOverlay').classList.remove('show');
+      showSetupWizard();
+    });
 
     // =========================================================
     // タブ切り替え
