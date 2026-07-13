@@ -1047,8 +1047,13 @@
     // =========================================================
     // ストレージ層（IndexedDB / File System Access API 切り替え）
     // =========================================================
-    const IDB_NAME = 'MemoApp';
-    const IDB_VERSION = 3;
+    // 旧アプリの DB「MemoApp」を v1→v3 にバージョンアップした際、
+    // 一部端末で DB ファイルが不整合を起こし保存が恒常的に失敗する
+    // 事象が出た。旧アプリで実績のある「v1 で新規作成されるまっさらな
+    // DB」方式に戻すため、別名の新 DB を v1 で作成して使う。
+    const IDB_NAME = 'MemoAppV2';
+    const IDB_VERSION = 1;
+    const OLD_IDB_NAME = 'MemoApp';
     let idb = null;
 
     function openIDB() {
@@ -1058,19 +1063,45 @@
         request.onsuccess = () => { idb = request.result; resolve(idb); };
         request.onupgradeneeded = (e) => {
           const database = e.target.result;
-          if (!database.objectStoreNames.contains('memos')) {
-            database.createObjectStore('memos', { keyPath: 'id' });
-          }
+          database.createObjectStore('memos', { keyPath: 'id' });
           // フォルダハンドル永続化用（FileSystemDirectoryHandle は IDB に保存可能）
-          if (!database.objectStoreNames.contains('settings')) {
-            database.createObjectStore('settings', { keyPath: 'key' });
-          }
+          database.createObjectStore('settings', { keyPath: 'key' });
           // 描画タブで保存する作品（常にこのブラウザ内保存）
-          if (!database.objectStoreNames.contains('drawings')) {
-            database.createObjectStore('drawings', { keyPath: 'id' });
-          }
+          database.createObjectStore('drawings', { keyPath: 'id' });
         };
       });
+    }
+
+    // 旧 DB（MemoApp）からメモを引き継ぐ（初回のみ・読める分だけベストエフォート）
+    async function migrateFromOldDB() {
+      if (localStorage.getItem('migratedFromMemoApp')) return;
+      try {
+        const oldDb = await new Promise((resolve, reject) => {
+          // バージョン指定なしで開く＝既存バージョンのまま開く（なければ作らないよう即クローズ）
+          const req = indexedDB.open(OLD_IDB_NAME);
+          req.onerror = () => reject(req.error);
+          req.onsuccess = () => resolve(req.result);
+          setTimeout(() => reject(new Error('open timeout')), 3000);
+        });
+        if (oldDb.objectStoreNames.contains('memos')) {
+          const oldMemos = await new Promise((resolve, reject) => {
+            const req = oldDb.transaction(['memos'], 'readonly').objectStore('memos').getAll();
+            req.onerror = () => reject(req.error);
+            req.onsuccess = () => resolve(req.result);
+          });
+          for (const memo of oldMemos) {
+            await idbPut('memos', memo).catch(() => {});
+          }
+          if (oldMemos.length > 0) {
+            showToast(`以前のメモ ${oldMemos.length} 件を引き継ぎました`);
+          }
+        }
+        oldDb.close();
+      } catch (e) {
+        // 旧 DB が壊れていて読めない場合は諦めて新 DB で開始
+        console.log('old DB migration skipped:', e.message);
+      }
+      localStorage.setItem('migratedFromMemoApp', '1');
     }
 
     // Android Chrome ではタブのバックグラウンド化・画面ロック後などに
@@ -1290,6 +1321,7 @@
 
     async function initStorage() {
       await openIDB();
+      await migrateFromOldDB();
       const mode = localStorage.getItem('storageMode');
 
       if (mode === 'fs' && supportsFS) {
