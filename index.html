@@ -864,6 +864,7 @@
     <div class="tab-bar">
       <button class="tab-btn active" data-tab="memo">📝 メモ</button>
       <button class="tab-btn" data-tab="draw">🎨 描画</button>
+      <button class="tab-btn" data-tab="pdf">📄 PDF</button>
       <button class="tab-btn" data-tab="both">📋 両方</button>
       <button class="settings-btn" id="settingsBtn" title="設定">⚙️</button>
     </div>
@@ -945,19 +946,40 @@
         <button class="draw-btn" id="drawSave">💾 保存</button>
         <button class="draw-btn" id="drawGallery">📁 一覧</button>
         <button class="draw-btn" id="drawDownload">📥 PNG</button>
-        <button class="draw-btn" id="drawPdf">📄 PDF</button>
         <input type="file" id="drawImageInput" accept="image/*" style="display: none;">
+      </div>
+      <div class="draw-canvas-holder">
+        <canvas id="drawCanvas"></canvas>
+      </div>
+    </div>
+
+    <!-- ===== PDF タブ ===== -->
+    <div class="tab-page" id="page-pdf">
+      <div class="draw-toolbar">
+        <button class="draw-btn" id="pdfOpen">📄 開く</button>
+        <input type="color" class="color-picker" id="pdfColor" value="#e53935">
+        <select class="brush-select" id="pdfBrush">
+          <option value="1">極細</option>
+          <option value="2">細</option>
+          <option value="4" selected>中</option>
+          <option value="6">太</option>
+          <option value="10">極太</option>
+        </select>
+        <button class="draw-btn" id="pdfEraser">🧽 消しゴム</button>
+        <button class="draw-btn" id="pdfUndo">↶ 戻す</button>
+        <button class="draw-btn" id="pdfClear">🆕 クリア</button>
+        <button class="draw-btn" id="pdfExport">📥 PDF保存</button>
         <input type="file" id="drawPdfInput" accept="application/pdf,.pdf" style="display: none;">
       </div>
       <div class="draw-toolbar" id="pdfNav" style="display: none;">
         <button class="draw-btn" id="pdfPrev">◀ 前</button>
         <span id="pdfPageInfo" style="align-self: center; color: #f5e6d3; font-size: 0.85rem; padding: 0 0.3rem;">1 / 1</span>
         <button class="draw-btn" id="pdfNext">次 ▶</button>
-        <button class="draw-btn" id="pdfExport">📥 PDF保存</button>
         <button class="draw-btn" id="pdfClose">✕ 閉じる</button>
       </div>
-      <div class="draw-canvas-holder">
-        <canvas id="drawCanvas"></canvas>
+      <div class="draw-canvas-holder" style="position: relative;">
+        <canvas id="pdfCanvas"></canvas>
+        <div id="pdfEmptyHint" style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #888; font-size: 0.9rem; pointer-events: none; text-align: center; padding: 1rem;">「📄 開く」から PDF を選ぶと、ここに表示されて書き込めます</div>
       </div>
     </div>
 
@@ -1463,23 +1485,23 @@
     // =========================================================
     // タブ切り替え
     // =========================================================
-    let currentTab = 'memo'; // 'memo' | 'draw' | 'both'
+    let currentTab = 'memo'; // 'memo' | 'draw' | 'pdf' | 'both'
 
     function switchTab(tab) {
       currentTab = tab;
       document.querySelectorAll('.tab-btn').forEach(b => {
         b.classList.toggle('active', b.dataset.tab === tab);
       });
-      const memoPage = $('page-memo');
-      const drawPage = $('page-draw');
+      $('page-memo').classList.toggle('active', tab === 'memo' || tab === 'both');
+      $('page-draw').classList.toggle('active', tab === 'draw');
+      $('page-pdf').classList.toggle('active', tab === 'pdf');
       if (tab === 'draw') {
-        memoPage.classList.remove('active');
-        drawPage.classList.add('active');
         $('fabBtn').classList.add('hidden');
         requestAnimationFrame(() => drawPad.resize());
+      } else if (tab === 'pdf') {
+        $('fabBtn').classList.add('hidden');
+        requestAnimationFrame(() => pdfPad.resize());
       } else {
-        drawPage.classList.remove('active');
-        memoPage.classList.add('active');
         // 「両方」モードのみエディタにスケッチボタンを表示
         $('sketchBtn').style.display = (tab === 'both') ? '' : 'none';
         updateAttachmentsVisibility();
@@ -1654,7 +1676,6 @@
       if (confirm('描いた内容を消去しますか？（背景画像は残ります）')) {
         drawPad.clear();
         currentDrawingId = null;
-        if (pdfState) delete pdfState.snapshots[pdfState.current];
       }
     });
     $('drawDownload').addEventListener('click', () => {
@@ -1671,12 +1692,22 @@
       e.target.value = '';
     });
 
-    // ===== PDF への書き込み =====
-    // PDF を開いてページを背景に表示し、既存のペン・消しゴムで書き込める。
+    // ===== PDF タブ：PDF への書き込み =====
+    // PDF を開いてページを背景に表示し、専用パッドのペン・消しゴムで書き込める。
     // ページごとの書き込みは snapshots に保持し、「PDF保存」で全ページを
     // 書き込み込みの PDF として書き出す。レンダリングは同梱の PDF.js（./pdfjs/）を使用。
+    const pdfPad = createSketchpad($('pdfCanvas'), $('pdfColor'), $('pdfBrush'), $('pdfEraser'));
     let pdfState = null; // { doc, pageCount, current, snapshots: { pageNum: { dataUrl, crop } } }
     let pdfjsLoading = null;
+
+    $('pdfUndo').addEventListener('click', () => pdfPad.undo());
+    $('pdfClear').addEventListener('click', () => {
+      if (!pdfPad.hasContent()) return;
+      if (confirm('このページの書き込みを消去しますか？')) {
+        pdfPad.clear();
+        if (pdfState) delete pdfState.snapshots[pdfState.current];
+      }
+    });
 
     function loadPdfJs() {
       if (window.pdfjsLib) return Promise.resolve();
@@ -1718,10 +1749,10 @@
 
     // 現在ページの書き込みをスナップショット保存（ページ切替・書き出し前に呼ぶ）
     function snapshotCurrentPdfPage() {
-      if (!pdfState || drawPad.history.length === 0) return;
-      const canvas = $('drawCanvas');
+      if (!pdfState || pdfPad.history.length === 0) return;
+      const canvas = $('pdfCanvas');
       const rect = canvas.getBoundingClientRect();
-      const img = drawPad.backgroundImage;
+      const img = pdfPad.backgroundImage;
       if (!img || rect.width === 0) return;
       // redrawBackground と同じフィット計算で、キャンバス内のページ描画領域を求める
       const canvasRatio = rect.width / rect.height;
@@ -1743,20 +1774,20 @@
       const pageCanvas = await renderPdfPageToCanvas(pageNum, 2);
       const img = await loadImg(pageCanvas.toDataURL('image/jpeg', 0.92));
       pdfState.current = pageNum;
-      drawPad.backgroundImage = img;
-      drawPad.history = [];
-      drawPad.redrawBackground();
+      pdfPad.backgroundImage = img;
+      pdfPad.history = [];
+      pdfPad.redrawBackground();
       const snap = pdfState.snapshots[pageNum];
       if (snap) {
         const rimg = await loadImg(snap.dataUrl);
-        const canvas = $('drawCanvas');
+        const canvas = $('pdfCanvas');
         const rect = canvas.getBoundingClientRect();
         const ctx = canvas.getContext('2d');
         ctx.save();
         ctx.globalCompositeOperation = 'source-over';
         ctx.drawImage(rimg, 0, 0, rect.width, rect.height);
         ctx.restore();
-        drawPad.history.push(snap.dataUrl);
+        pdfPad.history.push(snap.dataUrl);
       }
       $('pdfPageInfo').textContent = `${pageNum} / ${pdfState.pageCount}`;
       $('pdfPrev').disabled = pageNum <= 1;
@@ -1766,11 +1797,12 @@
     function closePdf() {
       pdfState = null;
       $('pdfNav').style.display = 'none';
-      drawPad.backgroundImage = null;
-      drawPad.clear();
+      $('pdfEmptyHint').style.display = 'flex';
+      pdfPad.backgroundImage = null;
+      pdfPad.clear();
     }
 
-    $('drawPdf').addEventListener('click', () => $('drawPdfInput').click());
+    $('pdfOpen').addEventListener('click', () => $('drawPdfInput').click());
     $('drawPdfInput').addEventListener('change', async (e) => {
       const file = e.target.files[0];
       e.target.value = '';
@@ -1781,9 +1813,9 @@
         const buf = await file.arrayBuffer();
         const doc = await window.pdfjsLib.getDocument({ data: buf }).promise;
         pdfState = { doc, pageCount: doc.numPages, current: 1, snapshots: {} };
-        currentDrawingId = null;
         $('pdfNav').style.display = 'flex';
-        drawPad.resize();
+        $('pdfEmptyHint').style.display = 'none';
+        pdfPad.resize();
         await showPdfPage(1);
         showToast(`PDF を開きました（全 ${doc.numPages} ページ）。ペンで書き込めます`);
       } catch (err) {
@@ -1907,6 +1939,7 @@
 
     window.addEventListener('resize', () => {
       if (currentTab === 'draw') drawPad.resize();
+      if (currentTab === 'pdf') pdfPad.resize();
     });
 
     // ===== 描画の保存・一覧（常にこのブラウザの IndexedDB に保存） =====
@@ -1976,8 +2009,6 @@
     async function loadDrawing(id) {
       const entry = await idbGet('drawings', id);
       if (!entry) return;
-      pdfState = null;
-      $('pdfNav').style.display = 'none';
       currentDrawingId = id;
       drawPad.history = [];
       drawPad.backgroundImage = null;
