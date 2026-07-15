@@ -1147,6 +1147,10 @@
           <div class="label">ストレージ使用量</div>
           <div class="value" id="settingsUsage">計測中...</div>
         </div>
+        <div class="settings-row">
+          <div class="label">アプリのバージョン</div>
+          <div class="value" id="settingsVersion">-</div>
+        </div>
         <button class="modal-btn" id="changeStorageBtn">メモの保存先を変更</button>
         <button class="modal-btn secondary" id="settingsClose">閉じる</button>
       </div>
@@ -1217,7 +1221,14 @@
     const isAndroid = /android/.test(ua);
     // ===== Service Worker =====
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('./sw.js').catch(() => {});
+      navigator.serviceWorker.register('./sw.js').then((reg) => {
+        // アプリを開き直した時・前面に戻した時に更新を確認し、
+        // 新しいバージョンの取り込みが遅れないようにする
+        reg.update().catch(() => {});
+        document.addEventListener('visibilitychange', () => {
+          if (document.visibilityState === 'visible') reg.update().catch(() => {});
+        });
+      }).catch(() => {});
     }
 
     // =========================================================
@@ -1573,8 +1584,10 @@
     });
 
     // ===== 設定モーダル =====
+    const APP_VERSION = 'v26';
     $('settingsBtn').addEventListener('click', async () => {
       $('settingsStorage').textContent = storage.label();
+      $('settingsVersion').textContent = APP_VERSION;
       $('settingsOverlay').classList.add('show');
       $('settingsUsage').textContent = '計測中...';
       if (navigator.storage && navigator.storage.estimate) {
@@ -1999,6 +2012,8 @@
         body.style.color = obj.color;
         body.innerText = obj.text;
         body.addEventListener('input', () => { obj.text = body.innerText; });
+        // 最後に触ったテキストを記録（カラーピッカー変更時の自動適用先）
+        body.addEventListener('focus', () => { lastActiveTextObj = obj; });
         el.appendChild(body);
       } else if (obj.type === 'image') {
         const img = document.createElement('img');
@@ -2021,6 +2036,18 @@
       }
       return el;
     }
+
+    // カラーピッカーの変更を「最後に触ったテキスト」へ自動適用する。
+    // 🎨 ボタンを押さなくても、テキスト編集→色変更で文字色が変わる。
+    // ペンに切り替えたい時のためにキャンバスへ描き始めたら対象を解除する。
+    let lastActiveTextObj = null;
+    $('pdfCanvas').addEventListener('pointerdown', () => { lastActiveTextObj = null; });
+    $('pdfColor').addEventListener('input', () => {
+      if (!pdfState || !lastActiveTextObj) return;
+      if (!currentPageObjects().includes(lastActiveTextObj)) return;
+      lastActiveTextObj.color = $('pdfColor').value;
+      renderPdfObjects();
+    });
 
     $('pdfAddText').addEventListener('click', () => {
       if (!pdfState) { showToast('先に PDF を開いてください'); return; }
