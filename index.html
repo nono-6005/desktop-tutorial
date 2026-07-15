@@ -2303,7 +2303,15 @@
 
     window.addEventListener('resize', () => {
       if (currentTab === 'draw') drawPad.resize();
-      if (currentTab === 'pdf') { pdfPad.resize(); renderPdfObjects(); }
+      if (currentTab === 'pdf') {
+        // モバイルではソフトキーボードの開閉でも resize が発火する。
+        // テキスト編集中にオブジェクトを作り直すとフォーカスが奪われて
+        // キーボードが即閉じ、入力できなくなるためスキップする。
+        const ae = document.activeElement;
+        if (ae && ae.classList && ae.classList.contains('pdf-obj-text')) return;
+        pdfPad.resize();
+        renderPdfObjects();
+      }
     });
 
     // ===== 描画の保存・一覧（常にこのブラウザの IndexedDB に保存） =====
