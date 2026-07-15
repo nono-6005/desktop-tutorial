@@ -768,6 +768,76 @@
       padding: 0;
     }
 
+    /* ===== PDF タブのオブジェクト（テキスト・画像）レイヤー ===== */
+    #pdfObjects {
+      position: absolute;
+      inset: 0.75rem;
+      pointer-events: none;
+      overflow: hidden;
+    }
+
+    .pdf-obj {
+      position: absolute;
+      pointer-events: auto;
+    }
+
+    .pdf-obj .obj-bar {
+      position: absolute;
+      top: -26px;
+      left: 0;
+      display: flex;
+      gap: 3px;
+      white-space: nowrap;
+    }
+
+    .obj-bar button {
+      background: #2a2a2a;
+      border: 1px solid rgba(180, 120, 60, 0.5);
+      color: #d4d4d4;
+      font-size: 0.72rem;
+      border-radius: 4px;
+      padding: 2px 7px;
+      cursor: pointer;
+    }
+
+    .obj-bar .obj-drag {
+      cursor: move;
+      touch-action: none;
+    }
+
+    .pdf-obj-text {
+      min-height: 1em;
+      min-width: 2em;
+      outline: none;
+      border: 1px dashed rgba(217, 119, 87, 0.7);
+      line-height: 1.3;
+      background: transparent;
+      white-space: pre-wrap;
+      word-break: break-all;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', sans-serif;
+      -webkit-user-select: text;
+      user-select: text;
+    }
+
+    .pdf-obj img {
+      width: 100%;
+      display: block;
+      border: 1px dashed rgba(217, 119, 87, 0.7);
+      pointer-events: none;
+    }
+
+    .obj-resize {
+      position: absolute;
+      right: -9px;
+      bottom: -9px;
+      width: 18px;
+      height: 18px;
+      background: #d97757;
+      border-radius: 50%;
+      cursor: nwse-resize;
+      touch-action: none;
+    }
+
     .sketch-actions {
       display: flex;
       gap: 0.5rem;
@@ -966,10 +1036,13 @@
           <option value="10">極太</option>
         </select>
         <button class="draw-btn" id="pdfEraser">🧽 消しゴム</button>
+        <button class="draw-btn" id="pdfAddText">🅣 テキスト</button>
+        <button class="draw-btn" id="pdfAddImage">🖼 画像</button>
         <button class="draw-btn" id="pdfUndo">↶ 戻す</button>
         <button class="draw-btn" id="pdfClear">🆕 クリア</button>
         <button class="draw-btn" id="pdfExport">📥 PDF保存</button>
         <input type="file" id="drawPdfInput" accept="application/pdf,.pdf" style="display: none;">
+        <input type="file" id="pdfImageInput" accept="image/*" style="display: none;">
       </div>
       <div class="draw-toolbar" id="pdfNav" style="display: none;">
         <button class="draw-btn" id="pdfPrev">◀ 前</button>
@@ -979,6 +1052,7 @@
       </div>
       <div class="draw-canvas-holder" style="position: relative;">
         <canvas id="pdfCanvas"></canvas>
+        <div id="pdfObjects"></div>
         <div id="pdfEmptyHint" style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #888; font-size: 0.9rem; pointer-events: none; text-align: center; padding: 1rem;">「📄 開く」から PDF を選ぶと、ここに表示されて書き込めます</div>
       </div>
     </div>
@@ -1500,7 +1574,7 @@
         requestAnimationFrame(() => drawPad.resize());
       } else if (tab === 'pdf') {
         $('fabBtn').classList.add('hidden');
-        requestAnimationFrame(() => pdfPad.resize());
+        requestAnimationFrame(() => { pdfPad.resize(); renderPdfObjects(); });
       } else {
         // 「両方」モードのみエディタにスケッチボタンを表示
         $('sketchBtn').style.display = (tab === 'both') ? '' : 'none';
@@ -1747,14 +1821,12 @@
       return c;
     }
 
-    // 現在ページの書き込みをスナップショット保存（ページ切替・書き出し前に呼ぶ）
-    function snapshotCurrentPdfPage() {
-      if (!pdfState || pdfPad.history.length === 0) return;
+    // キャンバス内で PDF ページが表示されている領域（redrawBackground と同じフィット計算）
+    function pdfPageRect() {
       const canvas = $('pdfCanvas');
       const rect = canvas.getBoundingClientRect();
       const img = pdfPad.backgroundImage;
-      if (!img || rect.width === 0) return;
-      // redrawBackground と同じフィット計算で、キャンバス内のページ描画領域を求める
+      if (!img || rect.width === 0) return null;
       const canvasRatio = rect.width / rect.height;
       const imgRatio = img.width / img.height;
       let dw, dh, ox, oy;
@@ -1763,11 +1835,199 @@
       } else {
         dh = rect.height; dw = dh * imgRatio; ox = (rect.width - dw) / 2; oy = 0;
       }
-      const dpr = canvas.width / rect.width;
+      return { ox, oy, dw, dh };
+    }
+
+    // 現在ページの書き込みをスナップショット保存（ページ切替・書き出し前に呼ぶ）
+    function snapshotCurrentPdfPage() {
+      if (!pdfState || pdfPad.history.length === 0) return;
+      const canvas = $('pdfCanvas');
+      const r = pdfPageRect();
+      if (!r) return;
+      const dpr = canvas.width / canvas.getBoundingClientRect().width;
       pdfState.snapshots[pdfState.current] = {
         dataUrl: canvas.toDataURL('image/png'),
-        crop: { x: ox * dpr, y: oy * dpr, w: dw * dpr, h: dh * dpr },
+        crop: { x: r.ox * dpr, y: r.oy * dpr, w: r.dw * dpr, h: r.dh * dpr },
       };
+    }
+
+    // --- テキスト・画像オブジェクト（ページ上に配置し、書き出し時に焼き込む） ---
+    // 座標・サイズはページ表示領域に対する比率（0〜1）で保持し、画面サイズに依存しない。
+    function currentPageObjects() {
+      if (!pdfState.objects[pdfState.current]) pdfState.objects[pdfState.current] = [];
+      return pdfState.objects[pdfState.current];
+    }
+
+    function renderPdfObjects() {
+      const layer = $('pdfObjects');
+      layer.innerHTML = '';
+      if (!pdfState) return;
+      const r = pdfPageRect();
+      if (!r) return;
+      currentPageObjects().forEach(obj => layer.appendChild(buildPdfObjectEl(obj, r)));
+    }
+
+    function makeDraggable(handle, el, obj, r) {
+      let startX = 0, startY = 0, baseX = 0, baseY = 0;
+      handle.addEventListener('pointerdown', (e) => {
+        e.preventDefault();
+        handle.setPointerCapture(e.pointerId);
+        startX = e.clientX; startY = e.clientY;
+        baseX = obj.x; baseY = obj.y;
+      });
+      handle.addEventListener('pointermove', (e) => {
+        if (!handle.hasPointerCapture(e.pointerId)) return;
+        obj.x = baseX + (e.clientX - startX) / r.dw;
+        obj.y = baseY + (e.clientY - startY) / r.dh;
+        el.style.left = (r.ox + obj.x * r.dw) + 'px';
+        el.style.top = (r.oy + obj.y * r.dh) + 'px';
+      });
+    }
+
+    function buildPdfObjectEl(obj, r) {
+      const el = document.createElement('div');
+      el.className = 'pdf-obj';
+      el.style.left = (r.ox + obj.x * r.dw) + 'px';
+      el.style.top = (r.oy + obj.y * r.dh) + 'px';
+      el.style.width = (obj.w * r.dw) + 'px';
+
+      const bar = document.createElement('div');
+      bar.className = 'obj-bar';
+      const drag = document.createElement('button');
+      drag.className = 'obj-drag';
+      drag.textContent = '✥ 移動';
+      makeDraggable(drag, el, obj, r);
+      bar.appendChild(drag);
+
+      if (obj.type === 'text') {
+        const smaller = document.createElement('button');
+        smaller.textContent = 'A－';
+        smaller.addEventListener('click', () => {
+          obj.size = Math.max(0.01, obj.size - 0.005);
+          renderPdfObjects();
+        });
+        const bigger = document.createElement('button');
+        bigger.textContent = 'A＋';
+        bigger.addEventListener('click', () => {
+          obj.size = Math.min(0.15, obj.size + 0.005);
+          renderPdfObjects();
+        });
+        bar.appendChild(smaller);
+        bar.appendChild(bigger);
+      }
+
+      const del = document.createElement('button');
+      del.textContent = '✕';
+      del.addEventListener('click', () => {
+        const objs = currentPageObjects();
+        const idx = objs.indexOf(obj);
+        if (idx >= 0) objs.splice(idx, 1);
+        renderPdfObjects();
+      });
+      bar.appendChild(del);
+      el.appendChild(bar);
+
+      if (obj.type === 'text') {
+        const body = document.createElement('div');
+        body.className = 'pdf-obj-text';
+        body.contentEditable = 'true';
+        body.style.fontSize = (obj.size * r.dw) + 'px';
+        body.style.color = obj.color;
+        body.innerText = obj.text;
+        body.addEventListener('input', () => { obj.text = body.innerText; });
+        el.appendChild(body);
+      } else if (obj.type === 'image') {
+        const img = document.createElement('img');
+        img.src = obj.dataUrl;
+        el.appendChild(img);
+        const rs = document.createElement('div');
+        rs.className = 'obj-resize';
+        let startX = 0, baseW = 0;
+        rs.addEventListener('pointerdown', (e) => {
+          e.preventDefault();
+          rs.setPointerCapture(e.pointerId);
+          startX = e.clientX; baseW = obj.w;
+        });
+        rs.addEventListener('pointermove', (e) => {
+          if (!rs.hasPointerCapture(e.pointerId)) return;
+          obj.w = Math.max(0.05, Math.min(1, baseW + (e.clientX - startX) / r.dw));
+          el.style.width = (obj.w * r.dw) + 'px';
+        });
+        el.appendChild(rs);
+      }
+      return el;
+    }
+
+    $('pdfAddText').addEventListener('click', () => {
+      if (!pdfState) { showToast('先に PDF を開いてください'); return; }
+      currentPageObjects().push({
+        type: 'text', text: '', x: 0.1, y: 0.1, w: 0.6,
+        size: 0.03, color: $('pdfColor').value,
+      });
+      renderPdfObjects();
+      const texts = $('pdfObjects').querySelectorAll('.pdf-obj-text');
+      if (texts.length) texts[texts.length - 1].focus();
+    });
+
+    $('pdfAddImage').addEventListener('click', () => {
+      if (!pdfState) { showToast('先に PDF を開いてください'); return; }
+      $('pdfImageInput').click();
+    });
+    $('pdfImageInput').addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      e.target.value = '';
+      if (!file || !pdfState) return;
+      const reader = new FileReader();
+      reader.onload = async (ev) => {
+        const img = await loadImg(ev.target.result);
+        currentPageObjects().push({
+          type: 'image', dataUrl: ev.target.result,
+          x: 0.1, y: 0.1, w: 0.4, aspect: img.height / img.width,
+        });
+        renderPdfObjects();
+      };
+      reader.readAsDataURL(file);
+    });
+
+    // 書き出し時にテキスト・画像をページ画像へ焼き込む
+    function wrapCanvasText(ctx, text, maxWidth) {
+      const lines = [];
+      for (const raw of text.split('\n')) {
+        let line = '';
+        for (const ch of raw) {
+          if (line && ctx.measureText(line + ch).width > maxWidth) {
+            lines.push(line);
+            line = ch;
+          } else {
+            line += ch;
+          }
+        }
+        lines.push(line);
+      }
+      return lines;
+    }
+
+    async function drawObjectsOnCanvas(c, objs) {
+      const ctx = c.getContext('2d');
+      const W = c.width, H = c.height;
+      for (const o of objs) {
+        if (o.type === 'text') {
+          if (!o.text || !o.text.trim()) continue;
+          const fontPx = Math.max(1, o.size * W);
+          ctx.font = `${fontPx}px -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', sans-serif`;
+          ctx.fillStyle = o.color;
+          ctx.textBaseline = 'top';
+          let y = o.y * H;
+          for (const line of wrapCanvasText(ctx, o.text, o.w * W)) {
+            ctx.fillText(line, o.x * W, y);
+            y += fontPx * 1.3;
+          }
+        } else if (o.type === 'image') {
+          const img = await loadImg(o.dataUrl);
+          const w = o.w * W;
+          ctx.drawImage(img, o.x * W, o.y * H, w, w * o.aspect);
+        }
+      }
     }
 
     async function showPdfPage(pageNum) {
@@ -1792,12 +2052,14 @@
       $('pdfPageInfo').textContent = `${pageNum} / ${pdfState.pageCount}`;
       $('pdfPrev').disabled = pageNum <= 1;
       $('pdfNext').disabled = pageNum >= pdfState.pageCount;
+      renderPdfObjects();
     }
 
     function closePdf() {
       pdfState = null;
       $('pdfNav').style.display = 'none';
       $('pdfEmptyHint').style.display = 'flex';
+      $('pdfObjects').innerHTML = '';
       pdfPad.backgroundImage = null;
       pdfPad.clear();
     }
@@ -1812,7 +2074,7 @@
         await loadPdfJs();
         const buf = await file.arrayBuffer();
         const doc = await window.pdfjsLib.getDocument({ data: buf }).promise;
-        pdfState = { doc, pageCount: doc.numPages, current: 1, snapshots: {} };
+        pdfState = { doc, pageCount: doc.numPages, current: 1, snapshots: {}, objects: {} };
         $('pdfNav').style.display = 'flex';
         $('pdfEmptyHint').style.display = 'none';
         pdfPad.resize();
@@ -1914,6 +2176,7 @@
             // 未編集ページ：元 PDF から高解像度で再レンダリング
             c = await renderPdfPageToCanvas(n, 2);
           }
+          await drawObjectsOnCanvas(c, pdfState.objects[n] || []);
           pages.push({
             dataUrl: c.toDataURL('image/jpeg', 0.9),
             pxWidth: c.width,
@@ -1939,7 +2202,7 @@
 
     window.addEventListener('resize', () => {
       if (currentTab === 'draw') drawPad.resize();
-      if (currentTab === 'pdf') pdfPad.resize();
+      if (currentTab === 'pdf') { pdfPad.resize(); renderPdfObjects(); }
     });
 
     // ===== 描画の保存・一覧（常にこのブラウザの IndexedDB に保存） =====
