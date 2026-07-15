@@ -2748,6 +2748,26 @@
     $('downloadBtn').addEventListener('click', downloadCurrentMemo);
     $('deleteBtn').addEventListener('click', deleteCurrentMemo);
 
+    // 本文入力欄で Tab キーをフォーカス移動ではなくタブ文字の入力にする
+    $('contentInput').addEventListener('keydown', (e) => {
+      if (e.key !== 'Tab') return;
+      e.preventDefault();
+      const ta = e.target;
+      const start = ta.selectionStart;
+      const end = ta.selectionEnd;
+      if (e.shiftKey) {
+        // Shift+Tab: 行頭のタブ（または先頭スペース）を1つ外す
+        const lineStart = ta.value.lastIndexOf('\n', start - 1) + 1;
+        if (ta.value[lineStart] === '\t') {
+          ta.value = ta.value.slice(0, lineStart) + ta.value.slice(lineStart + 1);
+          ta.selectionStart = ta.selectionEnd = Math.max(lineStart, start - 1);
+        }
+        return;
+      }
+      ta.value = ta.value.slice(0, start) + '\t' + ta.value.slice(end);
+      ta.selectionStart = ta.selectionEnd = start + 1;
+    });
+
     // ===== ブックマーク案内 =====
     $('installBtn').addEventListener('click', () => {
       let steps;
