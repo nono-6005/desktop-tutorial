@@ -1944,16 +1944,26 @@
       makeDraggable(drag, el, obj, r);
       bar.appendChild(drag);
 
+      // モバイルではテキスト編集中にボタンを押すと、キーボードが閉じる際の
+      // resize → 再描画でボタンが消え、click イベントが発火しない。
+      // pointerdown で即実行し、preventDefault でフォーカスも奪わない。
+      const onTap = (btn, fn) => {
+        btn.addEventListener('pointerdown', (e) => {
+          e.preventDefault();
+          fn();
+        });
+      };
+
       if (obj.type === 'text') {
         const smaller = document.createElement('button');
         smaller.textContent = 'A－';
-        smaller.addEventListener('click', () => {
+        onTap(smaller, () => {
           obj.size = Math.max(0.01, obj.size - 0.005);
           renderPdfObjects();
         });
         const bigger = document.createElement('button');
         bigger.textContent = 'A＋';
-        bigger.addEventListener('click', () => {
+        onTap(bigger, () => {
           obj.size = Math.min(0.15, obj.size + 0.005);
           renderPdfObjects();
         });
@@ -1961,7 +1971,7 @@
         const colorBtn = document.createElement('button');
         colorBtn.textContent = '🎨';
         colorBtn.title = '選択中の色を適用';
-        colorBtn.addEventListener('click', () => {
+        onTap(colorBtn, () => {
           obj.color = $('pdfColor').value;
           renderPdfObjects();
         });
@@ -1972,7 +1982,7 @@
 
       const del = document.createElement('button');
       del.textContent = '✕';
-      del.addEventListener('click', () => {
+      onTap(del, () => {
         const objs = currentPageObjects();
         const idx = objs.indexOf(obj);
         if (idx >= 0) objs.splice(idx, 1);
