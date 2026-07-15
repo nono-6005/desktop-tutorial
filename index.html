@@ -1957,8 +1957,17 @@
           obj.size = Math.min(0.15, obj.size + 0.005);
           renderPdfObjects();
         });
+        // ツールバーで選択中の色をこのテキストに適用する
+        const colorBtn = document.createElement('button');
+        colorBtn.textContent = '🎨';
+        colorBtn.title = '選択中の色を適用';
+        colorBtn.addEventListener('click', () => {
+          obj.color = $('pdfColor').value;
+          renderPdfObjects();
+        });
         bar.appendChild(smaller);
         bar.appendChild(bigger);
+        bar.appendChild(colorBtn);
       }
 
       const del = document.createElement('button');
