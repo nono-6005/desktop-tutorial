@@ -30,6 +30,11 @@
       user-select: none;
     }
 
+    body {
+      display: flex;
+      justify-content: center;
+    }
+
     input, textarea {
       -webkit-user-select: text;
       user-select: text;
@@ -39,6 +44,9 @@
       display: flex;
       flex-direction: column;
       height: 100vh;
+      width: 100%;
+      max-width: 480px;
+      box-shadow: 0 0 40px rgba(0, 0, 0, 0.5);
     }
 
     /* ===== タブバー ===== */
