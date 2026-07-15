@@ -1154,6 +1154,7 @@
           <div class="value" id="settingsVersion">-</div>
         </div>
         <button class="modal-btn" id="changeStorageBtn">メモの保存先を変更</button>
+        <button class="modal-btn secondary" id="manualBtn">📖 取扱説明書</button>
         <button class="modal-btn secondary" id="settingsClose">閉じる</button>
       </div>
     </div>
@@ -1586,7 +1587,7 @@
     });
 
     // ===== 設定モーダル =====
-    const APP_VERSION = 'v27';
+    const APP_VERSION = 'v28';
     $('settingsBtn').addEventListener('click', async () => {
       $('settingsStorage').textContent = storage.label();
       $('settingsVersion').textContent = APP_VERSION;
@@ -1605,6 +1606,7 @@
         $('settingsUsage').textContent = '取得できませんでした';
       }
     });
+    $('manualBtn').addEventListener('click', () => { window.location.href = './manual.html'; });
     $('settingsClose').addEventListener('click', () => $('settingsOverlay').classList.remove('show'));
     $('changeStorageBtn').addEventListener('click', () => {
       $('settingsOverlay').classList.remove('show');
