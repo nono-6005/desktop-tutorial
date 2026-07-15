@@ -1027,6 +1027,7 @@
     <div class="tab-page" id="page-pdf">
       <div class="draw-toolbar">
         <button class="draw-btn" id="pdfOpen">📄 開く</button>
+        <button class="draw-btn" id="pdfNew">🆕 新規作成</button>
         <input type="color" class="color-picker" id="pdfColor" value="#e53935">
         <select class="brush-select" id="pdfBrush">
           <option value="1">極細</option>
@@ -1053,7 +1054,7 @@
       <div class="draw-canvas-holder" style="position: relative;">
         <canvas id="pdfCanvas"></canvas>
         <div id="pdfObjects"></div>
-        <div id="pdfEmptyHint" style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #888; font-size: 0.9rem; pointer-events: none; text-align: center; padding: 1rem;">「📄 開く」から PDF を選ぶと、ここに表示されて書き込めます</div>
+        <div id="pdfEmptyHint" style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #888; font-size: 0.9rem; pointer-events: none; text-align: center; padding: 1rem;">「📄 開く」で PDF を開くか、「🆕 新規作成」で新しい PDF を作成できます</div>
       </div>
     </div>
 
@@ -1812,6 +1813,9 @@
     }
 
     async function renderPdfPageToCanvas(pageNum, scale) {
+      if (!pdfState.doc) {
+        return createBlankPdfPage();
+      }
       const page = await pdfState.doc.getPage(pageNum);
       const viewport = page.getViewport({ scale });
       const c = document.createElement('canvas');
@@ -2064,6 +2068,54 @@
       pdfPad.clear();
     }
 
+    function createBlankPdfPage() {
+      const c = document.createElement('canvas');
+      c.width = 1200; c.height = 1550;
+      const ctx = c.getContext('2d');
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, c.width, c.height);
+      return c;
+    }
+
+    async function startNewPdf(pageCount = 1) {
+      await loadPdfJs();
+      pdfState = { doc: null, pageCount, current: 1, snapshots: {}, objects: {} };
+      $('pdfNav').style.display = 'flex';
+      $('pdfEmptyHint').style.display = 'none';
+      pdfPad.resize();
+      await showBlankPdfPage(1);
+      showToast(`新しい PDF を作成しました（全 ${pageCount} ページ）。ペンで書き込めます`);
+    }
+
+    async function showBlankPdfPage(pageNum) {
+      const c = createBlankPdfPage();
+      const img = await loadImg(c.toDataURL('image/jpeg', 0.92));
+      pdfState.current = pageNum;
+      pdfPad.backgroundImage = img;
+      pdfPad.history = [];
+      pdfPad.redrawBackground();
+      const snap = pdfState.snapshots[pageNum];
+      if (snap) {
+        const rimg = await loadImg(snap.dataUrl);
+        const canvas = $('pdfCanvas');
+        const rect = canvas.getBoundingClientRect();
+        const ctx = canvas.getContext('2d');
+        ctx.save();
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.drawImage(rimg, 0, 0, rect.width, rect.height);
+        ctx.restore();
+        pdfPad.history.push(snap.dataUrl);
+      }
+      $('pdfPageInfo').textContent = `${pageNum} / ${pdfState.pageCount}`;
+      $('pdfPrev').disabled = pageNum <= 1;
+      $('pdfNext').disabled = pageNum >= pdfState.pageCount;
+      renderPdfObjects();
+    }
+
+    $('pdfNew').addEventListener('click', () => {
+      startNewPdf(1);
+    });
+
     $('pdfOpen').addEventListener('click', () => $('drawPdfInput').click());
     $('drawPdfInput').addEventListener('change', async (e) => {
       const file = e.target.files[0];
@@ -2089,13 +2141,21 @@
     $('pdfPrev').addEventListener('click', async () => {
       if (!pdfState || pdfState.current <= 1) return;
       snapshotCurrentPdfPage();
-      await showPdfPage(pdfState.current - 1);
+      if (pdfState.doc) {
+        await showPdfPage(pdfState.current - 1);
+      } else {
+        await showBlankPdfPage(pdfState.current - 1);
+      }
     });
 
     $('pdfNext').addEventListener('click', async () => {
       if (!pdfState || pdfState.current >= pdfState.pageCount) return;
       snapshotCurrentPdfPage();
-      await showPdfPage(pdfState.current + 1);
+      if (pdfState.doc) {
+        await showPdfPage(pdfState.current + 1);
+      } else {
+        await showBlankPdfPage(pdfState.current + 1);
+      }
     });
 
     $('pdfClose').addEventListener('click', () => {
