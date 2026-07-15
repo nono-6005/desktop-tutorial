@@ -1352,8 +1352,12 @@
       return md;
     }
 
-    function markdownToMemo(text, fileId) {
-      const memo = { id: fileId, title: '無題', content: '', createdAt: Date.now(), updatedAt: Date.now(), images: [] };
+    function memoFileName(memo) {
+      return memo.kind === 'both' ? `memo-both-${memo.id}.md` : `memo-${memo.id}.md`;
+    }
+
+    function markdownToMemo(text, fileId, kind) {
+      const memo = { id: fileId, title: '無題', content: '', createdAt: Date.now(), updatedAt: Date.now(), images: [], kind: kind || 'memo' };
       let body = text;
       const fmMatch = text.match(/^---\n([\s\S]*?)\n---\n?/);
       if (fmMatch) {
@@ -1382,22 +1386,32 @@
       return memo;
     }
 
+    // メモの種類（kind）で保存先の中身を分離する。
+    // 'memo' = 「メモ」タブで作成、'both' = 「両方」タブで作成（スケッチ添付可）。
+    // 既存データに kind が無い場合は 'memo' 扱い（後方互換）。
+    function memoKindOf(memo) {
+      return memo.kind === 'both' ? 'both' : 'memo';
+    }
+
     const storage = {
       mode: 'idb', // 'idb' | 'fs'
       dirHandle: null,
 
-      async getAll() {
+      async getAll(kind) {
+        kind = kind === 'both' ? 'both' : 'memo';
         if (this.mode === 'fs' && this.dirHandle) {
           const memos = [];
           try {
             for await (const entry of this.dirHandle.values()) {
               if (entry.kind !== 'file' || !entry.name.endsWith('.md')) continue;
-              const idMatch = entry.name.match(/^memo-(\d+)\.md$/);
+              const bothMatch = entry.name.match(/^memo-both-(\d+)\.md$/);
+              const memoMatch = !bothMatch && entry.name.match(/^memo-(\d+)\.md$/);
+              const idMatch = kind === 'both' ? bothMatch : memoMatch;
               if (!idMatch) continue;
               try {
                 const file = await entry.getFile();
                 const text = await file.text();
-                memos.push(markdownToMemo(text, parseInt(idMatch[1])));
+                memos.push(markdownToMemo(text, parseInt(idMatch[1]), kind));
               } catch (e) { /* 読めないファイルはスキップ */ }
             }
           } catch (e) {
@@ -1408,6 +1422,7 @@
           try {
             const local = await idbGetAll('memos');
             for (const m of local) {
+              if (memoKindOf(m) !== kind) continue;
               const idx = memos.findIndex(x => x.id === m.id);
               if (idx < 0) {
                 memos.push(m);
@@ -1419,13 +1434,13 @@
           return memos.sort((a, b) => b.updatedAt - a.updatedAt);
         }
         const all = await idbGetAll('memos');
-        return all.sort((a, b) => b.updatedAt - a.updatedAt);
+        return all.filter(m => memoKindOf(m) === kind).sort((a, b) => b.updatedAt - a.updatedAt);
       },
 
       async save(memo) {
         if (this.mode === 'fs' && this.dirHandle) {
           try {
-            const handle = await this.dirHandle.getFileHandle(`memo-${memo.id}.md`, { create: true });
+            const handle = await this.dirHandle.getFileHandle(memoFileName(memo), { create: true });
             const writable = await handle.createWritable();
             await writable.write(memoToMarkdown(memo));
             await writable.close();
@@ -1443,7 +1458,7 @@
 
       async remove(memo) {
         if (this.mode === 'fs' && this.dirHandle) {
-          try { await this.dirHandle.removeEntry(`memo-${memo.id}.md`); } catch (e) {}
+          try { await this.dirHandle.removeEntry(memoFileName(memo)); } catch (e) {}
           await idbDelete('memos', memo.id).catch(() => {});
           return;
         }
@@ -1582,6 +1597,8 @@
         updateAttachmentsVisibility();
         if (!$('editorWrapper').classList.contains('active')) {
           $('fabBtn').classList.remove('hidden');
+          // 「メモ」⇔「両方」の切り替え時は保存先が異なる一覧に差し替える
+          renderList();
         }
       }
     }
@@ -2462,7 +2479,7 @@
       let failed = 0;
       for (const id of selectedIds) {
         try {
-          await storage.remove({ id });
+          await storage.remove({ id, kind: currentTab === 'both' ? 'both' : 'memo' });
         } catch (e) {
           failed++;
         }
@@ -2495,7 +2512,7 @@
     async function renderList() {
       let memos;
       try {
-        memos = await storage.getAll();
+        memos = await storage.getAll(currentTab);
       } catch (e) {
         console.error('load failed:', e);
         showToast('メモの読み込みに失敗しました');
@@ -2609,6 +2626,7 @@
         createdAt: Date.now(),
         updatedAt: Date.now(),
         images: [],
+        kind: currentTab === 'both' ? 'both' : 'memo',
       };
       $('titleInput').value = currentMemo.title;
       $('contentInput').value = '';
@@ -2617,7 +2635,7 @@
     }
 
     async function openMemo(id) {
-      const memos = await storage.getAll();
+      const memos = await storage.getAll(currentTab);
       const memo = memos.find(m => m.id === id);
       if (!memo) return;
       currentMemo = memo;
