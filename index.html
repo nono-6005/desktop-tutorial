@@ -1592,7 +1592,7 @@
     });
 
     // ===== 設定モーダル =====
-    const APP_VERSION = 'v30';
+    const APP_VERSION = 'v31';
     $('settingsBtn').addEventListener('click', async () => {
       $('settingsStorage').textContent = storage.label();
       $('settingsVersion').textContent = APP_VERSION;
@@ -2772,19 +2772,23 @@
       showListView();
     }
 
-    function downloadCurrentMemo() {
+    function downloadCurrentMemo(format = 'md') {
       if (!currentMemo) return;
       const title = $('titleInput').value || '無題';
       let content = $('contentInput').value;
-      // 添付スケッチも Markdown 画像として同梱
+      // 添付スケッチも Markdown 画像として同梱（.txt では画像行は省略）
       if (currentMemo.images && currentMemo.images.length > 0) {
-        content += `\n\n`;
-        currentMemo.images.forEach((img, i) => {
-          content += `![スケッチ${i + 1}](${img.dataUrl})\n`;
-        });
+        if (format === 'md') {
+          content += `\n\n`;
+          currentMemo.images.forEach((img, i) => {
+            content += `![スケッチ${i + 1}](${img.dataUrl})\n`;
+          });
+        }
       }
-      const filename = `${title.replace(/[\\/:*?"<>|]/g, '_')}.md`;
-      const blob = new Blob([content], { type: 'text/markdown;charset=utf-8' });
+      const ext = format === 'txt' ? 'txt' : 'md';
+      const mime = format === 'txt' ? 'text/plain;charset=utf-8' : 'text/markdown;charset=utf-8';
+      const filename = `${title.replace(/[\\/:*?"<>|]/g, '_')}.${ext}`;
+      const blob = new Blob([content], { type: mime });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -2804,7 +2808,10 @@
 
     $('fabBtn').addEventListener('click', createNewMemo);
     $('saveBtn').addEventListener('click', saveCurrentMemo);
-    $('downloadBtn').addEventListener('click', downloadCurrentMemo);
+    $('downloadBtn').addEventListener('click', () => {
+      const choice = confirm('OK: テキスト(.txt) でダウンロード\nキャンセル: Markdown(.md) でダウンロード');
+      downloadCurrentMemo(choice ? 'txt' : 'md');
+    });
     $('deleteBtn').addEventListener('click', deleteCurrentMemo);
 
     // 本文入力欄で Tab キーをフォーカス移動ではなくタブ文字の入力にする
