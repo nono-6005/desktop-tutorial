@@ -15,6 +15,16 @@ A fully functional PWA memo application with:
 
 **Live:** https://nono-6005.github.io/desktop-tutorial/
 
+### sns-launcher (SNS Quick Launcher)
+
+A PWA app for opening multiple SNS accounts with one click:
+- Account registration (platform + URL/username + display name + description)
+- LocalStorage persistence
+- Offline support via Service Worker
+- PWA installation on mobile/desktop
+
+**Live:** https://nono-6005.github.io/desktop-tutorial/sns-launcher/
+
 ## Available Skills
 
 ### /memo-pwa

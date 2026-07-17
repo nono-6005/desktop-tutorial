@@ -1,0 +1,20 @@
+{
+  "name": "SNS Quick Launcher",
+  "short_name": "SNS Launcher",
+  "description": "複数のSNSアカウントをワンクリックで開けるランチャーアプリ",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#667eea",
+  "theme_color": "#667eea",
+  "icons": [
+    {
+      "src": "./icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ],
+  "categories": ["utilities", "social"]
+}
