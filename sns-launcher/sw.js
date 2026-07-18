@@ -1,4 +1,4 @@
-const CACHE_NAME = 'sns-launcher-v1';
+const CACHE_NAME = 'sns-launcher-v2';
 const ASSETS_TO_CACHE = [
   './index.html',
   './manifest.json',
