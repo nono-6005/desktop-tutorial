@@ -533,7 +533,11 @@
         }
 
         function openAccount(url) {
-            window.open(url, '_blank');
+            // window.open('_blank') だと新規タブ経由での引き渡しになり、
+            // Android のアプリリンク（Threads等のネイティブアプリへの
+            // ハンドオフ）と競合して遷移中の画面が重なって見えることがある。
+            // 同じウィンドウで直接遷移させることでOSに素直に引き渡す。
+            window.location.href = url;
         }
 
         function openAddModal() {
