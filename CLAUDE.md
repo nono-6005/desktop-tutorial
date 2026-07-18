@@ -94,6 +94,13 @@ one-off approval. Still surface anything that needs human judgment (ambiguous sp
 destructive changes outside this repo, anything not already covered by the PR's own
 verification) before merging.
 
+After merging, poll the GitHub Actions "pages build and deployment" run for the merge
+commit until it completes, then report the resulting live URL(s) to the user
+automatically (no need to wait for them to ask "URL発行") — e.g.
+`https://nono-6005.github.io/desktop-tutorial/memo/` and
+`https://nono-6005.github.io/desktop-tutorial/sns-launcher/`, adjusted to whatever
+paths the merged change actually affects.
+
 ## Notes
 
 - Service Worker caches pages from network first, falls back to cache if offline
