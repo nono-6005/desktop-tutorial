@@ -4,13 +4,42 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>desktop-tutorial</title>
-  <meta http-equiv="refresh" content="0; url=./memo/">
   <link rel="canonical" href="./memo/">
 </head>
 <body>
   <p><a href="./memo/">メモアプリへ移動</a></p>
   <script>
-    window.location.replace('./memo/');
+    // 旧バージョン（memo/sns-launcherをrootから分離する前）で登録された
+    // scope "/" のService Workerとキャッシュが残っていると、
+    // /memo/ や /sns-launcher/ への遷移を横取りしてしまうため、
+    // ここで検出して自動的に後始末してから遷移する。
+    async function cleanupLegacyRootScope() {
+      try {
+        if ('serviceWorker' in navigator) {
+          const regs = await navigator.serviceWorker.getRegistrations();
+          const rootOrigin = new URL('./', location.href).href;
+          await Promise.all(
+            regs
+              .filter((reg) => reg.scope === rootOrigin)
+              .map((reg) => reg.unregister())
+          );
+        }
+        if ('caches' in window) {
+          const keys = await caches.keys();
+          await Promise.all(
+            keys
+              .filter((key) => !key.startsWith('memo-app-v') && !key.startsWith('sns-launcher-v'))
+              .map((key) => caches.delete(key))
+          );
+        }
+      } catch (e) {
+        // クリーンアップに失敗しても遷移は継続する
+      }
+    }
+
+    cleanupLegacyRootScope().finally(() => {
+      window.location.replace('./memo/');
+    });
   </script>
 </body>
 </html>
