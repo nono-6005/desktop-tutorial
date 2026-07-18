@@ -85,6 +85,15 @@ To deploy:
 3. Merge PR
 4. Wait for deployment
 
+### Auto-merge policy
+
+For this repo, once a PR is opened and its changes have been verified (tests/manual
+checks described in the PR body pass), merge it immediately without waiting for
+separate user confirmation — this is standing authorization for this repo, not a
+one-off approval. Still surface anything that needs human judgment (ambiguous specs,
+destructive changes outside this repo, anything not already covered by the PR's own
+verification) before merging.
+
 ## Notes
 
 - Service Worker caches pages from network first, falls back to cache if offline
