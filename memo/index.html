@@ -1,0 +1,2904 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="メモ">
+  <meta name="theme-color" content="#d97757">
+  <meta name="description" content="Markdown対応のローカルメモ＋手書きアプリ">
+  <link rel="manifest" href="./manifest.json">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect fill='%23d97757' width='192' height='192'/><text x='50%' y='50%' font-size='120' font-weight='bold' fill='white' text-anchor='middle' dominant-baseline='middle' font-family='system-ui'>メ</text></svg>">
+  <title>メモ</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', sans-serif;
+      background: linear-gradient(180deg, #0f0f0f 0%, #1a1a1a 50%, #0f0f0f 100%);
+      color: #d4d4d4;
+      overflow: hidden;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+
+    body {
+      display: flex;
+      justify-content: center;
+    }
+
+    input, textarea {
+      -webkit-user-select: text;
+      user-select: text;
+    }
+
+    #app {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      width: 100%;
+      max-width: var(--app-max-width, 480px);
+      box-shadow: 0 0 40px rgba(0, 0, 0, 0.5);
+    }
+
+    :root {
+      --app-max-width: 480px;
+    }
+
+    /* ===== タブバー ===== */
+    .tab-bar {
+      display: flex;
+      align-items: center;
+      background: #0f0f0f;
+      border-bottom: 1px solid rgba(180, 120, 60, 0.2);
+      flex-shrink: 0;
+    }
+
+    .tab-btn {
+      flex: 1;
+      background: none;
+      border: none;
+      border-bottom: 2px solid transparent;
+      color: #888;
+      font-size: 0.9rem;
+      padding: 0.8rem 0.5rem;
+      cursor: pointer;
+      transition: all 0.15s;
+      white-space: nowrap;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+
+    .tab-btn.active {
+      color: #f5e6d3;
+      border-bottom-color: #d97757;
+    }
+
+    .settings-btn {
+      flex: 0 0 auto;
+      background: none;
+      border: none;
+      color: #888;
+      font-size: 1.1rem;
+      padding: 0.8rem;
+      cursor: pointer;
+    }
+
+    /* ===== タブページ ===== */
+    .tab-page {
+      display: none;
+      flex-direction: column;
+      flex: 1;
+      min-height: 0;
+    }
+
+    .tab-page.active {
+      display: flex;
+    }
+
+    /* ===== ヘッダー ===== */
+    .header {
+      background: #0f0f0f;
+      border-bottom: 1px solid rgba(180, 120, 60, 0.2);
+      padding: 1rem;
+      flex-shrink: 0;
+    }
+
+    .header-list {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+    }
+
+    .header h1 {
+      font-size: 1.3rem;
+      font-weight: 300;
+      letter-spacing: 0.05em;
+      color: #f5e6d3;
+    }
+
+    .header-count {
+      font-size: 0.75rem;
+      color: #666;
+      margin-top: 0.25rem;
+    }
+
+    .install-btn {
+      background: linear-gradient(135deg, #d97757 0%, #b4783c 100%);
+      border: none;
+      color: white;
+      font-size: 0.8rem;
+      font-weight: 500;
+      padding: 0.5rem 0.85rem;
+      border-radius: 999px;
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+      -webkit-user-select: none;
+      user-select: none;
+    }
+
+    .install-btn:active {
+      transform: scale(0.95);
+    }
+
+    /* ===== トースト通知 ===== */
+    .toast {
+      position: fixed;
+      left: 50%;
+      bottom: 2rem;
+      transform: translate(-50%, 1rem);
+      background: #2a2a2a;
+      color: #f5e6d3;
+      padding: 0.9rem 1.4rem;
+      border-radius: 12px;
+      font-size: 0.9rem;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+      border: 1px solid rgba(180, 120, 60, 0.3);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s ease, transform 0.25s ease;
+      z-index: 500;
+      max-width: 90vw;
+      text-align: center;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translate(-50%, 0);
+    }
+
+    /* ===== モーダル共通 ===== */
+    .overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.65);
+      z-index: 300;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+
+    .overlay.show {
+      display: flex;
+    }
+
+    .modal {
+      background: #1a1a1a;
+      border: 1px solid rgba(180, 120, 60, 0.3);
+      border-radius: 16px;
+      padding: 1.5rem;
+      max-width: 440px;
+      width: 100%;
+      max-height: 90vh;
+      overflow-y: auto;
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.6);
+    }
+
+    .modal h2 {
+      color: #f5e6d3;
+      font-size: 1.15rem;
+      font-weight: 500;
+      margin-bottom: 1rem;
+    }
+
+    .modal p.desc {
+      font-size: 0.85rem;
+      color: #999;
+      line-height: 1.5;
+      margin-bottom: 1rem;
+    }
+
+    .modal-btn {
+      width: 100%;
+      background: linear-gradient(135deg, #d97757 0%, #b4783c 100%);
+      border: none;
+      color: white;
+      font-size: 0.95rem;
+      font-weight: 500;
+      padding: 0.75rem;
+      border-radius: 10px;
+      cursor: pointer;
+      margin-top: 0.5rem;
+    }
+
+    .modal-btn.secondary {
+      background: #2a2a2a;
+      color: #d4d4d4;
+      border: 1px solid #444;
+    }
+
+    .modal-btn:active {
+      transform: scale(0.98);
+    }
+
+    /* 保存先選択カード */
+    .storage-option {
+      display: block;
+      width: 100%;
+      text-align: left;
+      background: #222;
+      border: 1px solid #444;
+      border-radius: 12px;
+      padding: 1rem;
+      margin-bottom: 0.75rem;
+      cursor: pointer;
+      color: #d4d4d4;
+      transition: border-color 0.15s;
+    }
+
+    .storage-option:active,
+    .storage-option:hover {
+      border-color: #d97757;
+    }
+
+    .storage-option.selected {
+      border-color: #d97757;
+      background: rgba(217, 119, 87, 0.1);
+    }
+
+    .storage-option .so-title {
+      font-size: 1rem;
+      color: #f5e6d3;
+      margin-bottom: 0.3rem;
+    }
+
+    .storage-option .so-desc {
+      font-size: 0.78rem;
+      color: #999;
+      line-height: 1.45;
+    }
+
+    .storage-option[disabled] {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    /* 描画ギャラリー */
+    .gallery-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+      gap: 0.6rem;
+      margin-bottom: 1rem;
+    }
+
+    .gallery-item {
+      position: relative;
+      border: 1px solid #444;
+      border-radius: 8px;
+      overflow: hidden;
+      cursor: pointer;
+      background: #111;
+      aspect-ratio: 1;
+    }
+
+    .gallery-item img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .gallery-item .g-name {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.6);
+      color: #f5e6d3;
+      font-size: 0.65rem;
+      padding: 0.2rem 0.35rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .gallery-item .g-del {
+      position: absolute;
+      top: 3px;
+      right: 3px;
+      width: 1.4rem;
+      height: 1.4rem;
+      border-radius: 50%;
+      background: rgba(0, 0, 0, 0.7);
+      color: #e74c3c;
+      border: none;
+      font-size: 0.75rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .guide-modal ol {
+      list-style: none;
+      counter-reset: step;
+      margin-bottom: 1.25rem;
+    }
+
+    .guide-modal li {
+      counter-increment: step;
+      display: flex;
+      gap: 0.75rem;
+      padding: 0.6rem 0;
+      font-size: 0.95rem;
+      color: #d4d4d4;
+      line-height: 1.4;
+    }
+
+    .guide-modal li::before {
+      content: counter(step);
+      flex-shrink: 0;
+      width: 1.6rem;
+      height: 1.6rem;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #d97757 0%, #b4783c 100%);
+      color: white;
+      font-size: 0.8rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* ===== メモリスト・エディタ ===== */
+    .header-edit {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .header-edit button {
+      background: none;
+      border: none;
+      color: #f5e6d3;
+      cursor: pointer;
+      font-size: 0.95rem;
+      padding: 0.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+
+    .header-edit .delete-btn {
+      color: #888;
+    }
+
+    .header-edit .delete-btn:active {
+      color: #e74c3c;
+    }
+
+    .content {
+      flex: 1;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      padding-bottom: 1rem;
+    }
+
+    .content::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    .content::-webkit-scrollbar-thumb {
+      background: rgba(180, 120, 60, 0.3);
+      border-radius: 2px;
+    }
+
+    .memo-list {
+      list-style: none;
+    }
+
+    .memo-item {
+      padding: 1rem;
+      border-left: 2px solid transparent;
+      border-bottom: 1px solid #222;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+
+    .memo-item:active,
+    .memo-item:hover {
+      border-left-color: #b4783c;
+      background: rgba(100, 60, 20, 0.15);
+    }
+
+    .memo-title {
+      font-size: 1rem;
+      font-weight: 500;
+      color: #f5e6d3;
+      margin-bottom: 0.25rem;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .memo-preview {
+      font-size: 0.85rem;
+      color: #888;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      margin-bottom: 0.5rem;
+      min-height: 1.4em;
+    }
+
+    .memo-date {
+      font-size: 0.75rem;
+      color: #555;
+      text-align: right;
+    }
+
+    .memo-badge {
+      display: inline-block;
+      font-size: 0.7rem;
+      color: #d97757;
+      margin-right: 0.4rem;
+    }
+
+    /* 複数選択モード */
+    .memo-item .memo-check {
+      display: none;
+      flex-shrink: 0;
+      width: 1.4rem;
+      height: 1.4rem;
+      border: 2px solid #666;
+      border-radius: 50%;
+      margin-right: 0.75rem;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.8rem;
+      color: transparent;
+    }
+
+    .memo-list.selecting .memo-item {
+      display: flex;
+      align-items: center;
+    }
+
+    .memo-list.selecting .memo-check {
+      display: flex;
+    }
+
+    .memo-item.selected {
+      background: rgba(217, 119, 87, 0.12);
+      border-left-color: #d97757;
+    }
+
+    .memo-item.selected .memo-check {
+      background: #d97757;
+      border-color: #d97757;
+      color: white;
+    }
+
+    .memo-item .memo-body {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 50vh;
+      gap: 1rem;
+      color: #666;
+    }
+
+    .list-view {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+    }
+
+    .list-view.hidden {
+      display: none;
+    }
+
+    .editor-wrapper {
+      display: none;
+      flex-direction: column;
+      flex: 1;
+      min-height: 0;
+    }
+
+    .editor-wrapper.active {
+      display: flex;
+    }
+
+    .editor-container {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      min-height: 0;
+    }
+
+    .title-input {
+      padding: 1rem;
+      background: transparent;
+      border: none;
+      border-bottom: 1px solid #333;
+      font-size: 1.25rem;
+      font-weight: 500;
+      color: #f5e6d3;
+      outline: none;
+    }
+
+    .title-input:focus {
+      border-bottom-color: #b4783c;
+    }
+
+    .title-input::placeholder,
+    .content-input::placeholder {
+      color: #555;
+    }
+
+    .content-input {
+      flex: 1;
+      padding: 1rem;
+      background: transparent;
+      border: none;
+      color: #d4d4d4;
+      outline: none;
+      font-family: 'Courier New', monospace;
+      font-size: 0.95rem;
+      line-height: 1.5;
+      resize: none;
+      -webkit-overflow-scrolling: touch;
+      min-height: 0;
+    }
+
+    .editor-meta {
+      padding: 0 1rem 0.5rem;
+      font-size: 0.75rem;
+      color: #555;
+    }
+
+    /* スケッチ添付ストリップ（両方モード） */
+    .attachments {
+      display: none;
+      gap: 0.5rem;
+      padding: 0.5rem 1rem;
+      overflow-x: auto;
+      flex-shrink: 0;
+      border-top: 1px solid #222;
+      align-items: center;
+    }
+
+    .attachments.visible {
+      display: flex;
+    }
+
+    .attachment-thumb {
+      position: relative;
+      flex-shrink: 0;
+      width: 72px;
+      height: 72px;
+      border: 1px solid #444;
+      border-radius: 8px;
+      overflow: hidden;
+      cursor: pointer;
+      background: #111;
+    }
+
+    .attachment-thumb img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .attachment-thumb .att-del {
+      position: absolute;
+      top: 2px;
+      right: 2px;
+      width: 1.3rem;
+      height: 1.3rem;
+      border-radius: 50%;
+      background: rgba(0, 0, 0, 0.7);
+      color: #e74c3c;
+      border: none;
+      font-size: 0.75rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .sketch-add-btn {
+      flex-shrink: 0;
+      width: 72px;
+      height: 72px;
+      border: 1px dashed #666;
+      border-radius: 8px;
+      background: none;
+      color: #999;
+      font-size: 0.7rem;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 0.2rem;
+    }
+
+    .sketch-add-btn span {
+      font-size: 1.2rem;
+    }
+
+    /* ===== FAB ===== */
+    /* アプリ本体（中央寄せ・最大幅あり）の右下に追従させる。
+       右余白 = (画面幅 - アプリ幅) / 2 + 1.5rem */
+    .fab {
+      position: fixed;
+      bottom: 1.5rem;
+      right: calc((100vw - min(100vw, var(--app-max-width, 480px))) / 2 + 1.5rem);
+      z-index: 50;
+      width: 3.5rem;
+      height: 3.5rem;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #d97757 0%, #b4783c 100%);
+      border: none;
+      color: white;
+      font-size: 1.5rem;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+
+    .fab:active {
+      transform: scale(0.95);
+    }
+
+    .fab.hidden {
+      display: none;
+    }
+
+    /* ===== 描画タブ ===== */
+    .draw-toolbar {
+      display: flex;
+      gap: 0.4rem;
+      flex-wrap: wrap;
+      padding: 0.6rem 1rem;
+      background: #0f0f0f;
+      border-bottom: 1px solid rgba(180, 120, 60, 0.2);
+      align-items: center;
+      flex-shrink: 0;
+    }
+
+    .draw-btn {
+      padding: 0.5rem 0.7rem;
+      background: rgba(180, 120, 60, 0.2);
+      border: 1px solid #666;
+      color: #f5e6d3;
+      font-size: 0.85rem;
+      cursor: pointer;
+      border-radius: 3px;
+      white-space: nowrap;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+
+    .draw-btn:active {
+      background: rgba(180, 120, 60, 0.4);
+    }
+
+    .draw-btn.toggled {
+      border-color: #d97757;
+      background: rgba(217, 119, 87, 0.35);
+    }
+
+    .color-picker {
+      width: 2.3rem;
+      height: 2.3rem;
+      border: 1px solid #666;
+      border-radius: 3px;
+      cursor: pointer;
+      padding: 2px;
+      background: none;
+    }
+
+    .brush-select {
+      padding: 0.5rem 0.6rem;
+      background: rgba(180, 120, 60, 0.2);
+      border: 1px solid #666;
+      color: #f5e6d3;
+      font-size: 0.8rem;
+      cursor: pointer;
+      border-radius: 3px;
+    }
+
+    .draw-canvas-holder {
+      flex: 1;
+      min-height: 0;
+      padding: 0.75rem;
+      display: flex;
+    }
+
+    .draw-canvas-holder canvas {
+      flex: 1;
+      width: 100%;
+      border: 1px solid #333;
+      border-radius: 4px;
+      background: #1a1a1a;
+      cursor: crosshair;
+      touch-action: none;
+    }
+
+    /* スケッチモーダル */
+    .sketch-modal {
+      max-width: 640px;
+      display: flex;
+      flex-direction: column;
+      height: min(80vh, 620px);
+      padding: 1rem;
+    }
+
+    .sketch-modal .draw-toolbar {
+      border-bottom: none;
+      background: none;
+      padding: 0.4rem 0;
+    }
+
+    .sketch-modal .draw-canvas-holder {
+      padding: 0;
+    }
+
+    /* ===== PDF タブのオブジェクト（テキスト・画像）レイヤー ===== */
+    #pdfObjects {
+      position: absolute;
+      inset: 0.75rem;
+      pointer-events: none;
+      overflow: hidden;
+    }
+
+    .pdf-obj {
+      position: absolute;
+      pointer-events: auto;
+    }
+
+    .pdf-obj .obj-bar {
+      position: absolute;
+      top: -26px;
+      left: 0;
+      display: flex;
+      gap: 3px;
+      white-space: nowrap;
+    }
+
+    .obj-bar button {
+      background: #2a2a2a;
+      border: 1px solid rgba(180, 120, 60, 0.5);
+      color: #d4d4d4;
+      font-size: 0.72rem;
+      border-radius: 4px;
+      padding: 2px 7px;
+      cursor: pointer;
+    }
+
+    .obj-bar .obj-color {
+      width: 1.6rem;
+      height: 1.6rem;
+      padding: 1px;
+      border-radius: 4px;
+    }
+
+    .obj-bar .obj-drag {
+      cursor: move;
+      touch-action: none;
+    }
+
+    .pdf-obj-text {
+      min-height: 1em;
+      min-width: 2em;
+      outline: none;
+      border: 1px dashed rgba(217, 119, 87, 0.7);
+      line-height: 1.3;
+      background: transparent;
+      white-space: pre-wrap;
+      word-break: break-all;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', sans-serif;
+      -webkit-user-select: text;
+      user-select: text;
+    }
+
+    .pdf-obj img {
+      width: 100%;
+      display: block;
+      border: 1px dashed rgba(217, 119, 87, 0.7);
+      pointer-events: none;
+    }
+
+    .obj-resize {
+      position: absolute;
+      right: -9px;
+      bottom: -9px;
+      width: 18px;
+      height: 18px;
+      background: #d97757;
+      border-radius: 50%;
+      cursor: nwse-resize;
+      touch-action: none;
+    }
+
+    .sketch-actions {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: 0.75rem;
+      flex-shrink: 0;
+    }
+
+    .sketch-actions .modal-btn {
+      margin-top: 0;
+    }
+
+    /* ===== 設定モーダル ===== */
+    .settings-row {
+      padding: 0.75rem 0;
+      border-bottom: 1px solid #2a2a2a;
+      font-size: 0.9rem;
+    }
+
+    .settings-row .label {
+      color: #999;
+      font-size: 0.78rem;
+      margin-bottom: 0.3rem;
+    }
+
+    .settings-row .value {
+      color: #f5e6d3;
+    }
+
+    /* safe-area */
+    @supports (padding: max(0px)) {
+      .header {
+        padding-left: max(1rem, env(safe-area-inset-left));
+        padding-right: max(1rem, env(safe-area-inset-right));
+      }
+
+      .tab-bar {
+        padding-top: env(safe-area-inset-top);
+      }
+
+      .fab {
+        bottom: max(1.5rem, calc(1.5rem + env(safe-area-inset-bottom)));
+        right: max(
+          calc((100vw - min(100vw, var(--app-max-width, 480px))) / 2 + 1.5rem),
+          calc(1.5rem + env(safe-area-inset-right))
+        );
+      }
+
+      .toast {
+        bottom: max(2rem, calc(2rem + env(safe-area-inset-bottom)));
+      }
+    }
+
+    /* ===== タブレット・デスクトップ（768px〜） ===== */
+    @media (min-width: 768px) {
+      /* 2ペイン（一覧＋エディタ）が収まる幅まで広げつつ中央寄せを維持 */
+      :root {
+        --app-max-width: 960px;
+      }
+
+      .memo-layout {
+        flex-direction: row;
+      }
+
+      .memo-layout .list-view {
+        width: 340px;
+        border-right: 1px solid rgba(180, 120, 60, 0.2);
+      }
+
+      .memo-layout .list-view.hidden {
+        display: flex;
+      }
+
+      .memo-layout .editor-wrapper {
+        flex: 1;
+        display: flex;
+      }
+
+      /* デスクトップは2ペインで一覧が常に見えるため、編集中も＋を表示する。
+         ただしメモ系タブが表示されている時だけ（描画・PDF タブでは出さない） */
+      body:has(#page-memo.active) .fab.hidden {
+        display: flex;
+      }
+
+      .title-input {
+        font-size: 1.5rem;
+        padding: 1.25rem;
+      }
+
+      .content-input {
+        font-size: 1rem;
+      }
+    }
+
+    @media (min-width: 1024px) {
+      .memo-layout .list-view {
+        width: 400px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <!-- タブバー -->
+    <div class="tab-bar">
+      <button class="tab-btn active" data-tab="memo">📝 メモ</button>
+      <button class="tab-btn" data-tab="draw">🎨 描画</button>
+      <button class="tab-btn" data-tab="pdf">📄 PDF</button>
+      <button class="tab-btn" data-tab="both">📋 両方</button>
+      <button class="settings-btn" id="settingsBtn" title="設定">⚙️</button>
+    </div>
+
+    <!-- ===== メモタブ / 両方タブ 共用ページ ===== -->
+    <div class="tab-page memo-layout active" id="page-memo" style="flex-direction: column;">
+      <div style="display: flex; flex: 1; min-height: 0;" class="memo-layout" id="memoLayout">
+        <!-- リスト -->
+        <div class="list-view" id="listView">
+          <div class="header">
+            <div class="header-list" id="listHeaderNormal">
+              <div>
+                <h1>メモ</h1>
+                <p class="header-count" id="memoCount">0 件</p>
+              </div>
+              <div style="display: flex; gap: 0.4rem; align-items: center;">
+                <button id="selectModeBtn" class="install-btn" style="background: #2a2a2a; border: 1px solid #444;">☑ 選択</button>
+                <button id="installBtn" class="install-btn">🔖 ブックマーク</button>
+              </div>
+            </div>
+            <div class="header-list" id="listHeaderSelect" style="display: none;">
+              <div>
+                <h1 style="font-size: 1.1rem;">選択中</h1>
+                <p class="header-count" id="selectCount">0 件</p>
+              </div>
+              <div style="display: flex; gap: 0.4rem; align-items: center;">
+                <button id="selectAllBtn" class="install-btn" style="background: #2a2a2a; border: 1px solid #444;">全選択</button>
+                <button id="selectDeleteBtn" class="install-btn" style="background: #7a2e22;">🗑 削除</button>
+                <button id="selectCancelBtn" class="install-btn" style="background: #2a2a2a; border: 1px solid #444;">✕</button>
+              </div>
+            </div>
+          </div>
+          <div class="content">
+            <ul class="memo-list" id="memoList"></ul>
+            <div class="empty-state" id="emptyState">
+              <p>メモはまだありません</p>
+              <p>新規作成ボタンから始める</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- エディタ -->
+        <div class="editor-wrapper" id="editorWrapper">
+          <div class="header" id="editorHeader" style="display: none;">
+            <div class="header-edit">
+              <button id="saveBtn">← 保存</button>
+              <div style="display: flex; gap: 0.25rem;">
+                <button id="sketchBtn" style="display: none;">📐 スケッチ</button>
+                <button id="downloadBtn">📥</button>
+                <button class="delete-btn" id="deleteBtn">🗑</button>
+              </div>
+            </div>
+          </div>
+          <div class="editor-container" id="editorContainer" style="display: none;">
+            <input type="text" class="title-input" id="titleInput" placeholder="タイトル">
+            <textarea class="content-input" id="contentInput" placeholder="Markdown で記述..."></textarea>
+            <div class="attachments" id="attachments"></div>
+            <div class="editor-meta" id="editorMeta"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== 描画タブ ===== -->
+    <div class="tab-page" id="page-draw">
+      <div class="draw-toolbar">
+        <input type="color" class="color-picker" id="drawColor" value="#f5e6d3">
+        <select class="brush-select" id="drawBrush">
+          <option value="1">極細</option>
+          <option value="2">細</option>
+          <option value="4" selected>中</option>
+          <option value="6">太</option>
+          <option value="10">極太</option>
+        </select>
+        <button class="draw-btn" id="drawEraser">🧽 消しゴム</button>
+        <button class="draw-btn" id="drawUpload">🖼 画像</button>
+        <button class="draw-btn" id="drawUndo">↶ 戻す</button>
+        <button class="draw-btn" id="drawClear">🆕 クリア</button>
+        <button class="draw-btn" id="drawSave">💾 保存</button>
+        <button class="draw-btn" id="drawGallery">📁 一覧</button>
+        <button class="draw-btn" id="drawDownload">📥 PNG</button>
+        <input type="file" id="drawImageInput" accept="image/*" style="display: none;">
+      </div>
+      <div class="draw-canvas-holder">
+        <canvas id="drawCanvas"></canvas>
+      </div>
+    </div>
+
+    <!-- ===== PDF タブ ===== -->
+    <div class="tab-page" id="page-pdf">
+      <div class="draw-toolbar">
+        <button class="draw-btn" id="pdfOpen">📄 開く</button>
+        <button class="draw-btn" id="pdfNew">🆕 新規作成</button>
+        <input type="color" class="color-picker" id="pdfColor" value="#e53935">
+        <select class="brush-select" id="pdfBrush">
+          <option value="1">極細</option>
+          <option value="2">細</option>
+          <option value="4" selected>中</option>
+          <option value="6">太</option>
+          <option value="10">極太</option>
+        </select>
+        <button class="draw-btn" id="pdfEraser">🧽 消しゴム</button>
+        <button class="draw-btn" id="pdfAddText">🅣 テキスト</button>
+        <button class="draw-btn" id="pdfAddImage">🖼 画像</button>
+        <button class="draw-btn" id="pdfUndo">↶ 戻す</button>
+        <button class="draw-btn" id="pdfClear">🆕 クリア</button>
+        <button class="draw-btn" id="pdfExport">📥 PDF保存</button>
+        <input type="file" id="drawPdfInput" accept="application/pdf,.pdf" style="display: none;">
+        <input type="file" id="pdfImageInput" accept="image/*" style="display: none;">
+      </div>
+      <div class="draw-toolbar" id="pdfNav" style="display: none;">
+        <button class="draw-btn" id="pdfPrev">◀ 前</button>
+        <span id="pdfPageInfo" style="align-self: center; color: #f5e6d3; font-size: 0.85rem; padding: 0 0.3rem;">1 / 1</span>
+        <button class="draw-btn" id="pdfNext">次 ▶</button>
+        <button class="draw-btn" id="pdfClose">✕ 閉じる</button>
+      </div>
+      <div class="draw-canvas-holder" style="position: relative;">
+        <canvas id="pdfCanvas"></canvas>
+        <div id="pdfObjects"></div>
+        <div id="pdfEmptyHint" style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #888; font-size: 0.9rem; pointer-events: none; text-align: center; padding: 1rem;">「📄 開く」で PDF を開くか、「🆕 新規作成」で新しい PDF を作成できます</div>
+      </div>
+    </div>
+
+    <!-- ===== 描画ギャラリー ===== -->
+    <div class="overlay" id="galleryOverlay">
+      <div class="modal">
+        <h2>📁 保存した描画</h2>
+        <p class="desc">タップで読み込み。この端末（ブラウザ内）に保存されます。</p>
+        <div class="gallery-grid" id="galleryGrid"></div>
+        <div class="empty-state" id="galleryEmpty" style="display: none; height: auto; padding: 1.5rem 0;">
+          <p>保存された描画はまだありません</p>
+        </div>
+        <button class="modal-btn secondary" id="galleryClose">閉じる</button>
+      </div>
+    </div>
+
+    <!-- FAB -->
+    <button class="fab" id="fabBtn">+</button>
+
+    <!-- トースト -->
+    <div class="toast" id="toast"></div>
+
+    <!-- ===== 保存先選択ウィザード ===== -->
+    <div class="overlay" id="setupOverlay">
+      <div class="modal">
+        <h2>メモの保存先を選択</h2>
+        <p class="desc">あとから設定（⚙️）でいつでも変更できます。</p>
+        <button class="storage-option" id="optIdb">
+          <div class="so-title">📱 このブラウザ内</div>
+          <div class="so-desc">ブラウザのローカルストレージ（IndexedDB）に保存。設定不要ですぐ使えます。この端末・このブラウザ専用。</div>
+        </button>
+        <button class="storage-option" id="optFs">
+          <div class="so-title">📂 フォルダを選んで保存</div>
+          <div class="so-desc">端末内のフォルダ（SD カード・USB ドライブ含む）に .md ファイルとして保存。ファイルアプリから直接見られます。書き込めない場合は自動でブラウザ内に保存されます。</div>
+        </button>
+        <p class="desc" id="fsUnsupportedNote" style="display: none; color: #b4783c;">※ このブラウザはフォルダ保存（File System Access API）に未対応のため、ブラウザ内保存のみ利用できます。</p>
+        <button class="modal-btn secondary" id="setupClose">閉じる</button>
+      </div>
+    </div>
+
+    <!-- ===== 保存繰り返し失敗時の復旧案内 ===== -->
+    <div class="overlay" id="saveFailOverlay">
+      <div class="modal">
+        <h2>⚠️ 保存できません</h2>
+        <p class="desc">保存が繰り返し失敗しています。端末側のストレージが不調になっている可能性があります。<br><br>入力内容は消えていません。以下のいずれかをお試しください。</p>
+        <button class="modal-btn secondary" id="saveFailDownload">📥 今すぐ .md をダウンロード</button>
+        <button class="modal-btn secondary" id="saveFailRetry">もう一度「保存」を試す</button>
+        <p class="desc" style="margin-top: 1rem; margin-bottom: 0;">直らない場合：ブラウザの設定 →サイトの設定 → このサイト →「ストレージデータを削除」で直ることがあります（保存済みメモは消えます）。</p>
+        <button class="modal-btn secondary" id="saveFailClose">閉じる</button>
+      </div>
+    </div>
+
+    <!-- ===== 設定モーダル ===== -->
+    <div class="overlay" id="settingsOverlay">
+      <div class="modal">
+        <h2>⚙️ 設定</h2>
+        <div class="settings-row">
+          <div class="label">メモの保存先</div>
+          <div class="value" id="settingsStorage">📱 このブラウザ内（IndexedDB）</div>
+        </div>
+        <div class="settings-row">
+          <div class="label">描画の保存先</div>
+          <div class="value">📱 このブラウザ内（IndexedDB・別領域）</div>
+        </div>
+        <div class="settings-row">
+          <div class="label">ストレージ使用量</div>
+          <div class="value" id="settingsUsage">計測中...</div>
+        </div>
+        <div class="settings-row">
+          <div class="label">アプリのバージョン</div>
+          <div class="value" id="settingsVersion">-</div>
+        </div>
+        <button class="modal-btn" id="changeStorageBtn">メモの保存先を変更</button>
+        <button class="modal-btn secondary" id="manualBtn">📖 取扱説明書</button>
+        <button class="modal-btn secondary" id="settingsClose">閉じる</button>
+      </div>
+    </div>
+
+    <!-- ===== スケッチモーダル（両方モード用） ===== -->
+    <div class="overlay" id="sketchOverlay">
+      <div class="modal sketch-modal">
+        <h2 style="margin-bottom: 0.25rem;">📐 スケッチ</h2>
+        <div class="draw-toolbar">
+          <input type="color" class="color-picker" id="sketchColor" value="#f5e6d3">
+          <select class="brush-select" id="sketchBrush">
+            <option value="1">極細</option>
+            <option value="2">細</option>
+            <option value="4" selected>中</option>
+            <option value="6">太</option>
+            <option value="10">極太</option>
+          </select>
+          <button class="draw-btn" id="sketchEraser">🧽</button>
+          <button class="draw-btn" id="sketchUndo">↶</button>
+          <button class="draw-btn" id="sketchClear">クリア</button>
+        </div>
+        <div class="draw-canvas-holder">
+          <canvas id="sketchCanvas"></canvas>
+        </div>
+        <div class="sketch-actions">
+          <button class="modal-btn" id="sketchInsert">メモに挿入</button>
+          <button class="modal-btn secondary" id="sketchCancel">キャンセル</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ブックマーク追加ガイド -->
+    <div class="overlay" id="guideOverlay">
+      <div class="modal guide-modal">
+        <h2>ブックマークに追加</h2>
+        <ol id="guideSteps"></ol>
+        <button class="modal-btn" id="guideClose">閉じる</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    'use strict';
+
+    // ===== ユーティリティ =====
+    let toastTimer = null;
+    function showToast(message, duration = 3000) {
+      const toast = document.getElementById('toast');
+      toast.textContent = message;
+      toast.classList.add('show');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => toast.classList.remove('show'), duration);
+    }
+
+    function escapeHtml(str) {
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    const $ = (id) => document.getElementById(id);
+
+    const ua = navigator.userAgent.toLowerCase();
+    const isIOS = /iphone|ipad|ipod/.test(ua);
+    const isAndroid = /android/.test(ua);
+    // ===== Service Worker =====
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('./sw.js').then((reg) => {
+        // アプリを開き直した時・前面に戻した時に更新を確認し、
+        // 新しいバージョンの取り込みが遅れないようにする
+        reg.update().catch(() => {});
+        document.addEventListener('visibilitychange', () => {
+          if (document.visibilityState === 'visible') reg.update().catch(() => {});
+        });
+      }).catch(() => {});
+    }
+
+    // =========================================================
+    // ストレージ層（IndexedDB / File System Access API 切り替え）
+    // =========================================================
+    // 旧アプリの DB「MemoApp」を v1→v3 にバージョンアップした際、
+    // 一部端末で DB ファイルが不整合を起こし保存が恒常的に失敗する
+    // 事象が出た。旧アプリで実績のある「v1 で新規作成されるまっさらな
+    // DB」方式に戻すため、別名の新 DB を v1 で作成して使う。
+    const IDB_NAME = 'MemoAppV2';
+    const IDB_VERSION = 1;
+    const OLD_IDB_NAME = 'MemoApp';
+    let idb = null;
+
+    function openIDB() {
+      return new Promise((resolve, reject) => {
+        const request = indexedDB.open(IDB_NAME, IDB_VERSION);
+        request.onerror = () => reject(request.error);
+        request.onsuccess = () => { idb = request.result; resolve(idb); };
+        request.onupgradeneeded = (e) => {
+          const database = e.target.result;
+          database.createObjectStore('memos', { keyPath: 'id' });
+          // フォルダハンドル永続化用（FileSystemDirectoryHandle は IDB に保存可能）
+          database.createObjectStore('settings', { keyPath: 'key' });
+          // 描画タブで保存する作品（常にこのブラウザ内保存）
+          database.createObjectStore('drawings', { keyPath: 'id' });
+        };
+      });
+    }
+
+    // 旧 DB（MemoApp）からメモを引き継ぐ（初回のみ・読める分だけベストエフォート）
+    async function migrateFromOldDB() {
+      if (localStorage.getItem('migratedFromMemoApp')) return;
+      try {
+        const oldDb = await new Promise((resolve, reject) => {
+          // バージョン指定なしで開く＝既存バージョンのまま開く（なければ作らないよう即クローズ）
+          const req = indexedDB.open(OLD_IDB_NAME);
+          req.onerror = () => reject(req.error);
+          req.onsuccess = () => resolve(req.result);
+          setTimeout(() => reject(new Error('open timeout')), 3000);
+        });
+        if (oldDb.objectStoreNames.contains('memos')) {
+          const oldMemos = await new Promise((resolve, reject) => {
+            const req = oldDb.transaction(['memos'], 'readonly').objectStore('memos').getAll();
+            req.onerror = () => reject(req.error);
+            req.onsuccess = () => resolve(req.result);
+          });
+          for (const memo of oldMemos) {
+            await idbPut('memos', memo).catch(() => {});
+          }
+          if (oldMemos.length > 0) {
+            showToast(`以前のメモ ${oldMemos.length} 件を引き継ぎました`);
+          }
+        }
+        oldDb.close();
+      } catch (e) {
+        // 旧 DB が壊れていて読めない場合は諦めて新 DB で開始
+        console.log('old DB migration skipped:', e.message);
+      }
+      localStorage.setItem('migratedFromMemoApp', '1');
+    }
+
+    // Android Chrome ではタブのバックグラウンド化・画面ロック後などに
+    // IndexedDB 接続が古い状態のまま残り、操作が失敗することがある
+    // （"state had changed since it was read from disk" エラー）。
+    // 検知したら接続を張り直して 1 回だけ再試行する。
+    function isStaleConnectionError(err) {
+      return !!err && typeof err.message === 'string' && err.message.includes('state had changed since it was read from disk');
+    }
+
+    function wait(ms) {
+      return new Promise((resolve) => setTimeout(resolve, ms));
+    }
+
+    async function withIdbRetry(run) {
+      const delays = [0, 150, 400, 900]; // 最大4回試行（初回＋3リトライ）
+      let lastErr = null;
+      for (let i = 0; i < delays.length; i++) {
+        if (delays[i] > 0) await wait(delays[i]);
+        try {
+          if (i > 0) {
+            try {
+              if (idb) idb.close();
+            } catch (e) { /* noop */ }
+            await openIDB();
+          }
+          return await run();
+        } catch (err) {
+          lastErr = err;
+          if (!isStaleConnectionError(err)) throw err;
+        }
+      }
+      throw lastErr;
+    }
+
+    function idbGet(storeName, key) {
+      return withIdbRetry(() => new Promise((resolve, reject) => {
+        const req = idb.transaction([storeName], 'readonly').objectStore(storeName).get(key);
+        req.onerror = () => reject(req.error);
+        req.onsuccess = () => resolve(req.result);
+      }));
+    }
+
+    function idbPut(storeName, value) {
+      return withIdbRetry(() => new Promise((resolve, reject) => {
+        const req = idb.transaction([storeName], 'readwrite').objectStore(storeName).put(value);
+        req.onerror = () => reject(req.error);
+        req.onsuccess = () => resolve(req.result);
+      }));
+    }
+
+    function idbDelete(storeName, key) {
+      return withIdbRetry(() => new Promise((resolve, reject) => {
+        const req = idb.transaction([storeName], 'readwrite').objectStore(storeName).delete(key);
+        req.onerror = () => reject(req.error);
+        req.onsuccess = () => resolve();
+      }));
+    }
+
+    function idbGetAll(storeName) {
+      return withIdbRetry(() => new Promise((resolve, reject) => {
+        const req = idb.transaction([storeName], 'readonly').objectStore(storeName).getAll();
+        req.onerror = () => reject(req.error);
+        req.onsuccess = () => resolve(req.result);
+      }));
+    }
+
+    // --- メモの保存機能（描画の保存＝drawings ストアとは独立） ---
+    // 既定はブラウザ内（IndexedDB）固定。設定から「フォルダ保存」も選択可能。
+    // フォルダへの書き込みが失敗する端末でも保存自体は失敗させず、
+    // 自動的にブラウザ内へ退避してから getAll でマージ表示する。
+    const supportsFS = 'showDirectoryPicker' in window;
+
+    async function verifyFsPermission(handle, withPrompt) {
+      const opts = { mode: 'readwrite' };
+      if (await handle.queryPermission(opts) === 'granted') return true;
+      if (withPrompt && await handle.requestPermission(opts) === 'granted') return true;
+      return false;
+    }
+
+    const ATTACH_MARKER = '<!-- attachments -->';
+
+    function memoToMarkdown(memo) {
+      let md = '---\n';
+      md += `title: ${memo.title.replace(/\n/g, ' ')}\n`;
+      md += `created: ${memo.createdAt}\n`;
+      md += `updated: ${memo.updatedAt}\n`;
+      md += '---\n';
+      md += memo.content;
+      if (memo.images && memo.images.length > 0) {
+        md += `\n\n${ATTACH_MARKER}\n`;
+        memo.images.forEach((img, i) => {
+          md += `![sketch-${i + 1}](${img.dataUrl})\n`;
+        });
+      }
+      return md;
+    }
+
+    function memoFileName(memo) {
+      return memo.kind === 'both' ? `memo-both-${memo.id}.md` : `memo-${memo.id}.md`;
+    }
+
+    function markdownToMemo(text, fileId, kind) {
+      const memo = { id: fileId, title: '無題', content: '', createdAt: Date.now(), updatedAt: Date.now(), images: [], kind: kind || 'memo' };
+      let body = text;
+      const fmMatch = text.match(/^---\n([\s\S]*?)\n---\n?/);
+      if (fmMatch) {
+        body = text.slice(fmMatch[0].length);
+        fmMatch[1].split('\n').forEach(line => {
+          const idx = line.indexOf(':');
+          if (idx < 0) return;
+          const key = line.slice(0, idx).trim();
+          const val = line.slice(idx + 1).trim();
+          if (key === 'title') memo.title = val || '無題';
+          if (key === 'created') memo.createdAt = parseInt(val) || memo.createdAt;
+          if (key === 'updated') memo.updatedAt = parseInt(val) || memo.updatedAt;
+        });
+      }
+      const markerIdx = body.indexOf(ATTACH_MARKER);
+      if (markerIdx >= 0) {
+        const attachPart = body.slice(markerIdx);
+        body = body.slice(0, markerIdx).replace(/\n+$/, '');
+        const re = /!\[[^\]]*\]\((data:image\/[^)]+)\)/g;
+        let m;
+        while ((m = re.exec(attachPart)) !== null) {
+          memo.images.push({ id: memo.images.length + 1, dataUrl: m[1] });
+        }
+      }
+      memo.content = body;
+      return memo;
+    }
+
+    // メモの種類（kind）で保存先の中身を分離する。
+    // 'memo' = 「メモ」タブで作成、'both' = 「両方」タブで作成（スケッチ添付可）。
+    // 既存データに kind が無い場合は 'memo' 扱い（後方互換）。
+    function memoKindOf(memo) {
+      return memo.kind === 'both' ? 'both' : 'memo';
+    }
+
+    const storage = {
+      mode: 'idb', // 'idb' | 'fs'
+      dirHandle: null,
+
+      async getAll(kind) {
+        kind = kind === 'both' ? 'both' : 'memo';
+        if (this.mode === 'fs' && this.dirHandle) {
+          const memos = [];
+          try {
+            for await (const entry of this.dirHandle.values()) {
+              if (entry.kind !== 'file' || !entry.name.endsWith('.md')) continue;
+              const bothMatch = entry.name.match(/^memo-both-(\d+)\.md$/);
+              const memoMatch = !bothMatch && entry.name.match(/^memo-(\d+)\.md$/);
+              const idMatch = kind === 'both' ? bothMatch : memoMatch;
+              if (!idMatch) continue;
+              try {
+                const file = await entry.getFile();
+                const text = await file.text();
+                memos.push(markdownToMemo(text, parseInt(idMatch[1]), kind));
+              } catch (e) { /* 読めないファイルはスキップ */ }
+            }
+          } catch (e) {
+            console.log('folder read failed:', e.message);
+          }
+          // フォルダに書けなかった時の退避分（ブラウザ内）もマージ表示。
+          // 同じ id が両方にある場合は更新が新しい方を採用。
+          try {
+            const local = await idbGetAll('memos');
+            for (const m of local) {
+              if (memoKindOf(m) !== kind) continue;
+              const idx = memos.findIndex(x => x.id === m.id);
+              if (idx < 0) {
+                memos.push(m);
+              } else if (m.updatedAt > memos[idx].updatedAt) {
+                memos[idx] = m;
+              }
+            }
+          } catch (e) { /* noop */ }
+          return memos.sort((a, b) => b.updatedAt - a.updatedAt);
+        }
+        const all = await idbGetAll('memos');
+        return all.filter(m => memoKindOf(m) === kind).sort((a, b) => b.updatedAt - a.updatedAt);
+      },
+
+      async save(memo) {
+        if (this.mode === 'fs' && this.dirHandle) {
+          try {
+            const handle = await this.dirHandle.getFileHandle(memoFileName(memo), { create: true });
+            const writable = await handle.createWritable();
+            await writable.write(memoToMarkdown(memo));
+            await writable.close();
+            await idbDelete('memos', memo.id).catch(() => {});
+            return;
+          } catch (e) {
+            console.log('folder write failed, falling back to IndexedDB:', e.message);
+            await idbPut('memos', memo);
+            showToast('フォルダに書き込めないため、ブラウザ内に保存しました');
+            return;
+          }
+        }
+        await idbPut('memos', memo);
+      },
+
+      async remove(memo) {
+        if (this.mode === 'fs' && this.dirHandle) {
+          try { await this.dirHandle.removeEntry(memoFileName(memo)); } catch (e) {}
+          await idbDelete('memos', memo.id).catch(() => {});
+          return;
+        }
+        await idbDelete('memos', memo.id);
+      },
+
+      label() {
+        if (this.mode === 'fs' && this.dirHandle) {
+          return `📂 フォルダ「${this.dirHandle.name}」（.md ファイル）`;
+        }
+        return '📱 このブラウザ内（IndexedDB）';
+      },
+    };
+
+    function showSetupWizard() {
+      if (!supportsFS) {
+        $('optFs').setAttribute('disabled', '');
+        $('fsUnsupportedNote').style.display = 'block';
+      }
+      $('setupOverlay').classList.add('show');
+    }
+
+    async function chooseIdb() {
+      storage.mode = 'idb';
+      storage.dirHandle = null;
+      localStorage.setItem('storageMode', 'idb');
+      await idbDelete('settings', 'dirHandle').catch(() => {});
+      $('setupOverlay').classList.remove('show');
+      showToast('ブラウザ内保存に設定しました');
+      renderList();
+    }
+
+    async function chooseFs() {
+      if (!supportsFS) return;
+      try {
+        const handle = await window.showDirectoryPicker({ mode: 'readwrite' });
+        if (!(await verifyFsPermission(handle, true))) {
+          showToast('フォルダへのアクセスが許可されませんでした');
+          return;
+        }
+        storage.mode = 'fs';
+        storage.dirHandle = handle;
+        localStorage.setItem('storageMode', 'fs');
+        await idbPut('settings', { key: 'dirHandle', handle });
+        $('setupOverlay').classList.remove('show');
+        showToast(`フォルダ「${handle.name}」に保存します（書き込めない場合は自動でブラウザ内に保存）`);
+        renderList();
+      } catch (e) {
+        // ユーザーがピッカーをキャンセル
+      }
+    }
+
+    async function initStorage() {
+      await openIDB();
+      await migrateFromOldDB();
+      const mode = localStorage.getItem('storageMode');
+
+      if (mode === 'fs' && supportsFS) {
+        const saved = await idbGet('settings', 'dirHandle').catch(() => null);
+        if (saved && saved.handle) {
+          storage.mode = 'fs';
+          storage.dirHandle = saved.handle;
+          // 権限確認は無音で行い、取れなくても getAll/save が
+          // ブラウザ内退避へ自動フォールバックするのでブロックしない
+          await verifyFsPermission(saved.handle, false).catch(() => false);
+          return true;
+        }
+      }
+      storage.mode = 'idb';
+      return true;
+    }
+
+    // ===== 保存先選択ウィザード =====
+    $('optIdb').addEventListener('click', chooseIdb);
+    $('optFs').addEventListener('click', chooseFs);
+    $('setupClose').addEventListener('click', () => $('setupOverlay').classList.remove('show'));
+
+    // ===== 保存繰り返し失敗時の復旧モーダル =====
+    $('saveFailDownload').addEventListener('click', () => {
+      downloadCurrentMemo();
+    });
+    $('saveFailRetry').addEventListener('click', () => {
+      $('saveFailOverlay').classList.remove('show');
+      saveCurrentMemo();
+    });
+    $('saveFailClose').addEventListener('click', () => {
+      $('saveFailOverlay').classList.remove('show');
+    });
+
+    // ===== 設定モーダル =====
+    const APP_VERSION = 'v33';
+    $('settingsBtn').addEventListener('click', async () => {
+      $('settingsStorage').textContent = storage.label();
+      $('settingsVersion').textContent = APP_VERSION;
+      $('settingsOverlay').classList.add('show');
+      $('settingsUsage').textContent = '計測中...';
+      if (navigator.storage && navigator.storage.estimate) {
+        try {
+          const est = await navigator.storage.estimate();
+          const usedMB = (est.usage / 1024 / 1024).toFixed(1);
+          const quotaMB = Math.round(est.quota / 1024 / 1024);
+          $('settingsUsage').textContent = `${usedMB} MB / 約 ${quotaMB} MB`;
+        } catch (e) {
+          $('settingsUsage').textContent = '取得できませんでした';
+        }
+      } else {
+        $('settingsUsage').textContent = '取得できませんでした';
+      }
+    });
+    $('manualBtn').addEventListener('click', () => { window.location.href = './manual.html'; });
+    $('settingsClose').addEventListener('click', () => $('settingsOverlay').classList.remove('show'));
+    $('changeStorageBtn').addEventListener('click', () => {
+      $('settingsOverlay').classList.remove('show');
+      showSetupWizard();
+    });
+
+    // =========================================================
+    // タブ切り替え
+    // =========================================================
+    let currentTab = 'memo'; // 'memo' | 'draw' | 'pdf' | 'both'
+
+    function switchTab(tab) {
+      currentTab = tab;
+      document.querySelectorAll('.tab-btn').forEach(b => {
+        b.classList.toggle('active', b.dataset.tab === tab);
+      });
+      $('page-memo').classList.toggle('active', tab === 'memo' || tab === 'both');
+      $('page-draw').classList.toggle('active', tab === 'draw');
+      $('page-pdf').classList.toggle('active', tab === 'pdf');
+      if (tab === 'draw') {
+        $('fabBtn').classList.add('hidden');
+        requestAnimationFrame(() => drawPad.resize());
+      } else if (tab === 'pdf') {
+        $('fabBtn').classList.add('hidden');
+        requestAnimationFrame(() => { pdfPad.resize(); renderPdfObjects(); });
+      } else {
+        // 「両方」モードのみエディタにスケッチボタンを表示
+        $('sketchBtn').style.display = (tab === 'both') ? '' : 'none';
+        updateAttachmentsVisibility();
+        if (!$('editorWrapper').classList.contains('active')) {
+          $('fabBtn').classList.remove('hidden');
+          // 「メモ」⇔「両方」の切り替え時は保存先が異なる一覧に差し替える
+          renderList();
+        }
+      }
+    }
+
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+    });
+
+    // =========================================================
+    // 描画パッド（描画タブ・スケッチモーダルで共用のファクトリ）
+    // =========================================================
+    function createSketchpad(canvas, colorInput, brushSelect, eraserBtn) {
+      const ctx = canvas.getContext('2d');
+      const pad = {
+        isDrawing: false,
+        lastX: 0,
+        lastY: 0,
+        history: [],
+        backgroundImage: null,
+        eraser: false,
+      };
+
+      function cssSize() {
+        const rect = canvas.getBoundingClientRect();
+        return { w: rect.width, h: rect.height };
+      }
+
+      pad.resize = function () {
+        const { w, h } = cssSize();
+        if (w === 0 || h === 0) return;
+        // リサイズ前の絵を保持
+        const prev = pad.history.length > 0 ? pad.history[pad.history.length - 1] : null;
+        canvas.width = w * devicePixelRatio;
+        canvas.height = h * devicePixelRatio;
+        ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+        pad.redrawBackground();
+        if (prev) {
+          const img = new Image();
+          img.onload = () => ctx.drawImage(img, 0, 0, w, h);
+          img.src = prev;
+        }
+      };
+
+      pad.redrawBackground = function () {
+        const { w, h } = cssSize();
+        ctx.save();
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.fillStyle = '#1a1a1a';
+        ctx.fillRect(0, 0, w, h);
+        if (pad.backgroundImage) {
+          const canvasRatio = w / h;
+          const imgRatio = pad.backgroundImage.width / pad.backgroundImage.height;
+          let dw, dh, ox, oy;
+          if (imgRatio > canvasRatio) {
+            dw = w; dh = w / imgRatio; ox = 0; oy = (h - dh) / 2;
+          } else {
+            dh = h; dw = h * imgRatio; ox = (w - dw) / 2; oy = 0;
+          }
+          ctx.drawImage(pad.backgroundImage, ox, oy, dw, dh);
+        }
+        ctx.restore();
+      };
+
+      pad.loadImage = function (file) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const img = new Image();
+          img.onload = () => {
+            pad.backgroundImage = img;
+            pad.history = [];
+            pad.redrawBackground();
+          };
+          img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+      };
+
+      pad.clear = function () {
+        pad.history = [];
+        pad.redrawBackground();
+      };
+
+      pad.undo = function () {
+        if (pad.history.length === 0) return;
+        pad.history.pop();
+        pad.redrawBackground();
+        if (pad.history.length > 0) {
+          const { w, h } = cssSize();
+          const img = new Image();
+          img.onload = () => {
+            ctx.save();
+            ctx.globalCompositeOperation = 'source-over';
+            ctx.drawImage(img, 0, 0, w, h);
+            ctx.restore();
+          };
+          img.src = pad.history[pad.history.length - 1];
+        }
+      };
+
+      pad.toDataURL = () => canvas.toDataURL('image/png');
+      pad.hasContent = () => pad.history.length > 0 || pad.backgroundImage !== null;
+
+      function pointerPos(e) {
+        const rect = canvas.getBoundingClientRect();
+        const src = e.touches ? e.touches[0] : e;
+        return { x: src.clientX - rect.left, y: src.clientY - rect.top };
+      }
+
+      function start(e) {
+        pad.isDrawing = true;
+        const p = pointerPos(e);
+        pad.lastX = p.x;
+        pad.lastY = p.y;
+      }
+
+      function move(e) {
+        if (!pad.isDrawing) return;
+        e.preventDefault();
+        const p = pointerPos(e);
+        ctx.strokeStyle = colorInput.value;
+        // 消しゴムは背景色で塗る（背景画像がある場合も背景ごと消さないよう背景色描画）
+        if (pad.eraser) {
+          ctx.strokeStyle = '#1a1a1a';
+          ctx.lineWidth = parseInt(brushSelect.value) * 3;
+        } else {
+          ctx.lineWidth = parseInt(brushSelect.value);
+        }
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.beginPath();
+        ctx.moveTo(pad.lastX, pad.lastY);
+        ctx.lineTo(p.x, p.y);
+        ctx.stroke();
+        pad.lastX = p.x;
+        pad.lastY = p.y;
+      }
+
+      function end() {
+        if (pad.isDrawing) pad.history.push(canvas.toDataURL());
+        pad.isDrawing = false;
+      }
+
+      canvas.addEventListener('mousedown', start);
+      canvas.addEventListener('mousemove', move);
+      canvas.addEventListener('mouseup', end);
+      canvas.addEventListener('mouseout', end);
+      canvas.addEventListener('touchstart', (e) => { e.preventDefault(); start(e); });
+      canvas.addEventListener('touchmove', move);
+      canvas.addEventListener('touchend', end);
+
+      if (eraserBtn) {
+        eraserBtn.addEventListener('click', () => {
+          pad.eraser = !pad.eraser;
+          eraserBtn.classList.toggle('toggled', pad.eraser);
+        });
+      }
+
+      return pad;
+    }
+
+    // --- 描画タブのパッド ---
+    const drawPad = createSketchpad($('drawCanvas'), $('drawColor'), $('drawBrush'), $('drawEraser'));
+    let currentDrawingId = null;
+
+    $('drawUndo').addEventListener('click', () => drawPad.undo());
+    $('drawClear').addEventListener('click', () => {
+      if (confirm('描いた内容を消去しますか？（背景画像は残ります）')) {
+        drawPad.clear();
+        currentDrawingId = null;
+      }
+    });
+    $('drawDownload').addEventListener('click', () => {
+      const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
+      const link = document.createElement('a');
+      link.href = drawPad.toDataURL();
+      link.download = `drawing-${timestamp}.png`;
+      link.click();
+    });
+    $('drawUpload').addEventListener('click', () => $('drawImageInput').click());
+    $('drawImageInput').addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (file) drawPad.loadImage(file);
+      e.target.value = '';
+    });
+
+    // ===== PDF タブ：PDF への書き込み =====
+    // PDF を開いてページを背景に表示し、専用パッドのペン・消しゴムで書き込める。
+    // ページごとの書き込みは snapshots に保持し、「PDF保存」で全ページを
+    // 書き込み込みの PDF として書き出す。レンダリングは同梱の PDF.js（./pdfjs/）を使用。
+    const pdfPad = createSketchpad($('pdfCanvas'), $('pdfColor'), $('pdfBrush'), $('pdfEraser'));
+    let pdfState = null; // { doc, pageCount, current, snapshots: { pageNum: { dataUrl, crop } } }
+    let pdfjsLoading = null;
+
+    $('pdfUndo').addEventListener('click', () => pdfPad.undo());
+    $('pdfClear').addEventListener('click', () => {
+      if (!pdfPad.hasContent()) return;
+      if (confirm('このページの書き込みを消去しますか？')) {
+        pdfPad.clear();
+        if (pdfState) delete pdfState.snapshots[pdfState.current];
+      }
+    });
+
+    function loadPdfJs() {
+      if (window.pdfjsLib) return Promise.resolve();
+      if (pdfjsLoading) return pdfjsLoading;
+      pdfjsLoading = new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = './pdfjs/pdf.min.js';
+        s.onload = () => {
+          window.pdfjsLib.GlobalWorkerOptions.workerSrc = './pdfjs/pdf.worker.min.js';
+          resolve();
+        };
+        s.onerror = () => {
+          pdfjsLoading = null;
+          reject(new Error('PDF 機能の読み込みに失敗しました'));
+        };
+        document.head.appendChild(s);
+      });
+      return pdfjsLoading;
+    }
+
+    function loadImg(src) {
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = reject;
+        img.src = src;
+      });
+    }
+
+    async function renderPdfPageToCanvas(pageNum, scale) {
+      if (!pdfState.doc) {
+        return createBlankPdfPage();
+      }
+      const page = await pdfState.doc.getPage(pageNum);
+      const viewport = page.getViewport({ scale });
+      const c = document.createElement('canvas');
+      c.width = viewport.width;
+      c.height = viewport.height;
+      await page.render({ canvasContext: c.getContext('2d'), viewport }).promise;
+      return c;
+    }
+
+    // キャンバス内で PDF ページが表示されている領域（redrawBackground と同じフィット計算）
+    function pdfPageRect() {
+      const canvas = $('pdfCanvas');
+      const rect = canvas.getBoundingClientRect();
+      const img = pdfPad.backgroundImage;
+      if (!img || rect.width === 0) return null;
+      const canvasRatio = rect.width / rect.height;
+      const imgRatio = img.width / img.height;
+      let dw, dh, ox, oy;
+      if (imgRatio > canvasRatio) {
+        dw = rect.width; dh = dw / imgRatio; ox = 0; oy = (rect.height - dh) / 2;
+      } else {
+        dh = rect.height; dw = dh * imgRatio; ox = (rect.width - dw) / 2; oy = 0;
+      }
+      return { ox, oy, dw, dh };
+    }
+
+    // 現在ページの書き込みをスナップショット保存（ページ切替・書き出し前に呼ぶ）
+    function snapshotCurrentPdfPage() {
+      if (!pdfState || pdfPad.history.length === 0) return;
+      const canvas = $('pdfCanvas');
+      const r = pdfPageRect();
+      if (!r) return;
+      const dpr = canvas.width / canvas.getBoundingClientRect().width;
+      pdfState.snapshots[pdfState.current] = {
+        dataUrl: canvas.toDataURL('image/png'),
+        crop: { x: r.ox * dpr, y: r.oy * dpr, w: r.dw * dpr, h: r.dh * dpr },
+      };
+    }
+
+    // --- テキスト・画像オブジェクト（ページ上に配置し、書き出し時に焼き込む） ---
+    // 座標・サイズはページ表示領域に対する比率（0〜1）で保持し、画面サイズに依存しない。
+    function currentPageObjects() {
+      if (!pdfState.objects[pdfState.current]) pdfState.objects[pdfState.current] = [];
+      return pdfState.objects[pdfState.current];
+    }
+
+    function renderPdfObjects() {
+      const layer = $('pdfObjects');
+      layer.innerHTML = '';
+      if (!pdfState) return;
+      const r = pdfPageRect();
+      if (!r) return;
+      currentPageObjects().forEach(obj => layer.appendChild(buildPdfObjectEl(obj, r)));
+    }
+
+    function makeDraggable(handle, el, obj, r) {
+      let startX = 0, startY = 0, baseX = 0, baseY = 0;
+      handle.addEventListener('pointerdown', (e) => {
+        e.preventDefault();
+        handle.setPointerCapture(e.pointerId);
+        startX = e.clientX; startY = e.clientY;
+        baseX = obj.x; baseY = obj.y;
+      });
+      handle.addEventListener('pointermove', (e) => {
+        if (!handle.hasPointerCapture(e.pointerId)) return;
+        obj.x = baseX + (e.clientX - startX) / r.dw;
+        obj.y = baseY + (e.clientY - startY) / r.dh;
+        el.style.left = (r.ox + obj.x * r.dw) + 'px';
+        el.style.top = (r.oy + obj.y * r.dh) + 'px';
+      });
+    }
+
+    function buildPdfObjectEl(obj, r) {
+      const el = document.createElement('div');
+      el.className = 'pdf-obj';
+      el.style.left = (r.ox + obj.x * r.dw) + 'px';
+      el.style.top = (r.oy + obj.y * r.dh) + 'px';
+      el.style.width = (obj.w * r.dw) + 'px';
+
+      // テキストの本体（contentEditable）はバーのボタンより先に作り、
+      // カラーピッカーの input イベントから直接参照できるようにする。
+      let textBody = null;
+      if (obj.type === 'text') {
+        textBody = document.createElement('div');
+        textBody.className = 'pdf-obj-text';
+        textBody.contentEditable = 'true';
+        textBody.style.fontSize = (obj.size * r.dw) + 'px';
+        textBody.style.color = obj.color;
+        textBody.innerText = obj.text;
+        textBody.addEventListener('input', () => { obj.text = textBody.innerText; });
+      }
+
+      const bar = document.createElement('div');
+      bar.className = 'obj-bar';
+      const drag = document.createElement('button');
+      drag.className = 'obj-drag';
+      drag.textContent = '✥ 移動';
+      makeDraggable(drag, el, obj, r);
+      bar.appendChild(drag);
+
+      // モバイルではテキスト編集中にボタンを押すと、キーボードが閉じる際の
+      // resize → 再描画でボタンが消え、click イベントが発火しない。
+      // pointerdown で即実行し、preventDefault でフォーカスも奪わない。
+      const onTap = (btn, fn) => {
+        btn.addEventListener('pointerdown', (e) => {
+          e.preventDefault();
+          fn();
+        });
+      };
+
+      if (obj.type === 'text') {
+        const smaller = document.createElement('button');
+        smaller.textContent = 'A－';
+        onTap(smaller, () => {
+          obj.size = Math.max(0.01, obj.size - 0.005);
+          renderPdfObjects();
+        });
+        const bigger = document.createElement('button');
+        bigger.textContent = 'A＋';
+        onTap(bigger, () => {
+          obj.size = Math.min(0.15, obj.size + 0.005);
+          renderPdfObjects();
+        });
+        // ペンの色選択と同じ、本物のカラーピッカーをそのまま置く。
+        // （隠し要素を疑似クリックする方式は端末によって開かないことがあるため、
+        //   ペンの #pdfColor と同様に実物の input[type=color] を直接操作してもらう）
+        const colorInput = document.createElement('input');
+        colorInput.type = 'color';
+        colorInput.className = 'color-picker obj-color';
+        colorInput.value = obj.color || '#e53935';
+        colorInput.title = '文字色を変更';
+        colorInput.addEventListener('input', () => {
+          obj.color = colorInput.value;
+          textBody.style.color = obj.color;
+        });
+        bar.appendChild(smaller);
+        bar.appendChild(bigger);
+        bar.appendChild(colorInput);
+      }
+
+      const del = document.createElement('button');
+      del.textContent = '✕';
+      onTap(del, () => {
+        const objs = currentPageObjects();
+        const idx = objs.indexOf(obj);
+        if (idx >= 0) objs.splice(idx, 1);
+        renderPdfObjects();
+      });
+      bar.appendChild(del);
+      el.appendChild(bar);
+
+      if (obj.type === 'text') {
+        el.appendChild(textBody);
+      } else if (obj.type === 'image') {
+        const img = document.createElement('img');
+        img.src = obj.dataUrl;
+        el.appendChild(img);
+        const rs = document.createElement('div');
+        rs.className = 'obj-resize';
+        let startX = 0, baseW = 0;
+        rs.addEventListener('pointerdown', (e) => {
+          e.preventDefault();
+          rs.setPointerCapture(e.pointerId);
+          startX = e.clientX; baseW = obj.w;
+        });
+        rs.addEventListener('pointermove', (e) => {
+          if (!rs.hasPointerCapture(e.pointerId)) return;
+          obj.w = Math.max(0.05, Math.min(1, baseW + (e.clientX - startX) / r.dw));
+          el.style.width = (obj.w * r.dw) + 'px';
+        });
+        el.appendChild(rs);
+      }
+      return el;
+    }
+
+    $('pdfAddText').addEventListener('click', () => {
+      if (!pdfState) { showToast('先に PDF を開いてください'); return; }
+      currentPageObjects().push({
+        type: 'text', text: '', x: 0.1, y: 0.1, w: 0.6,
+        size: 0.03, color: $('pdfColor').value,
+      });
+      renderPdfObjects();
+      const texts = $('pdfObjects').querySelectorAll('.pdf-obj-text');
+      if (texts.length) texts[texts.length - 1].focus();
+    });
+
+    $('pdfAddImage').addEventListener('click', () => {
+      if (!pdfState) { showToast('先に PDF を開いてください'); return; }
+      $('pdfImageInput').click();
+    });
+    $('pdfImageInput').addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      e.target.value = '';
+      if (!file || !pdfState) return;
+      const reader = new FileReader();
+      reader.onload = async (ev) => {
+        const img = await loadImg(ev.target.result);
+        currentPageObjects().push({
+          type: 'image', dataUrl: ev.target.result,
+          x: 0.1, y: 0.1, w: 0.4, aspect: img.height / img.width,
+        });
+        renderPdfObjects();
+      };
+      reader.readAsDataURL(file);
+    });
+
+    // 書き出し時にテキスト・画像をページ画像へ焼き込む
+    function wrapCanvasText(ctx, text, maxWidth) {
+      const lines = [];
+      for (const raw of text.split('\n')) {
+        let line = '';
+        for (const ch of raw) {
+          if (line && ctx.measureText(line + ch).width > maxWidth) {
+            lines.push(line);
+            line = ch;
+          } else {
+            line += ch;
+          }
+        }
+        lines.push(line);
+      }
+      return lines;
+    }
+
+    async function drawObjectsOnCanvas(c, objs) {
+      const ctx = c.getContext('2d');
+      const W = c.width, H = c.height;
+      for (const o of objs) {
+        if (o.type === 'text') {
+          if (!o.text || !o.text.trim()) continue;
+          const fontPx = Math.max(1, o.size * W);
+          ctx.font = `${fontPx}px -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', sans-serif`;
+          ctx.fillStyle = o.color;
+          ctx.textBaseline = 'top';
+          let y = o.y * H;
+          for (const line of wrapCanvasText(ctx, o.text, o.w * W)) {
+            ctx.fillText(line, o.x * W, y);
+            y += fontPx * 1.3;
+          }
+        } else if (o.type === 'image') {
+          const img = await loadImg(o.dataUrl);
+          const w = o.w * W;
+          ctx.drawImage(img, o.x * W, o.y * H, w, w * o.aspect);
+        }
+      }
+    }
+
+    async function showPdfPage(pageNum) {
+      const pageCanvas = await renderPdfPageToCanvas(pageNum, 2);
+      const img = await loadImg(pageCanvas.toDataURL('image/jpeg', 0.92));
+      pdfState.current = pageNum;
+      pdfPad.backgroundImage = img;
+      pdfPad.history = [];
+      pdfPad.redrawBackground();
+      const snap = pdfState.snapshots[pageNum];
+      if (snap) {
+        const rimg = await loadImg(snap.dataUrl);
+        const canvas = $('pdfCanvas');
+        const rect = canvas.getBoundingClientRect();
+        const ctx = canvas.getContext('2d');
+        ctx.save();
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.drawImage(rimg, 0, 0, rect.width, rect.height);
+        ctx.restore();
+        pdfPad.history.push(snap.dataUrl);
+      }
+      $('pdfPageInfo').textContent = `${pageNum} / ${pdfState.pageCount}`;
+      $('pdfPrev').disabled = pageNum <= 1;
+      $('pdfNext').disabled = pageNum >= pdfState.pageCount;
+      renderPdfObjects();
+    }
+
+    function closePdf() {
+      pdfState = null;
+      $('pdfNav').style.display = 'none';
+      $('pdfEmptyHint').style.display = 'flex';
+      $('pdfObjects').innerHTML = '';
+      pdfPad.backgroundImage = null;
+      pdfPad.clear();
+    }
+
+    function createBlankPdfPage() {
+      const c = document.createElement('canvas');
+      c.width = 1200; c.height = 1550;
+      const ctx = c.getContext('2d');
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, c.width, c.height);
+      return c;
+    }
+
+    async function startNewPdf(pageCount = 1) {
+      await loadPdfJs();
+      pdfState = { doc: null, pageCount, current: 1, snapshots: {}, objects: {} };
+      $('pdfNav').style.display = 'flex';
+      $('pdfEmptyHint').style.display = 'none';
+      pdfPad.resize();
+      await showBlankPdfPage(1);
+      showToast(`新しい PDF を作成しました（全 ${pageCount} ページ）。ペンで書き込めます`);
+    }
+
+    async function showBlankPdfPage(pageNum) {
+      const c = createBlankPdfPage();
+      const img = await loadImg(c.toDataURL('image/jpeg', 0.92));
+      pdfState.current = pageNum;
+      pdfPad.backgroundImage = img;
+      pdfPad.history = [];
+      pdfPad.redrawBackground();
+      const snap = pdfState.snapshots[pageNum];
+      if (snap) {
+        const rimg = await loadImg(snap.dataUrl);
+        const canvas = $('pdfCanvas');
+        const rect = canvas.getBoundingClientRect();
+        const ctx = canvas.getContext('2d');
+        ctx.save();
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.drawImage(rimg, 0, 0, rect.width, rect.height);
+        ctx.restore();
+        pdfPad.history.push(snap.dataUrl);
+      }
+      $('pdfPageInfo').textContent = `${pageNum} / ${pdfState.pageCount}`;
+      $('pdfPrev').disabled = pageNum <= 1;
+      $('pdfNext').disabled = pageNum >= pdfState.pageCount;
+      renderPdfObjects();
+    }
+
+    $('pdfNew').addEventListener('click', () => {
+      startNewPdf(1);
+    });
+
+    $('pdfOpen').addEventListener('click', () => $('drawPdfInput').click());
+    $('drawPdfInput').addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      e.target.value = '';
+      if (!file) return;
+      try {
+        showToast('PDF を読み込んでいます...');
+        await loadPdfJs();
+        const buf = await file.arrayBuffer();
+        const doc = await window.pdfjsLib.getDocument({ data: buf }).promise;
+        pdfState = { doc, pageCount: doc.numPages, current: 1, snapshots: {}, objects: {} };
+        $('pdfNav').style.display = 'flex';
+        $('pdfEmptyHint').style.display = 'none';
+        pdfPad.resize();
+        await showPdfPage(1);
+        showToast(`PDF を開きました（全 ${doc.numPages} ページ）。ペンで書き込めます`);
+      } catch (err) {
+        console.log('PDF open failed:', err);
+        showToast(err && err.message ? err.message : 'PDF を開けませんでした');
+      }
+    });
+
+    $('pdfPrev').addEventListener('click', async () => {
+      if (!pdfState || pdfState.current <= 1) return;
+      snapshotCurrentPdfPage();
+      if (pdfState.doc) {
+        await showPdfPage(pdfState.current - 1);
+      } else {
+        await showBlankPdfPage(pdfState.current - 1);
+      }
+    });
+
+    $('pdfNext').addEventListener('click', async () => {
+      if (!pdfState || pdfState.current >= pdfState.pageCount) return;
+      snapshotCurrentPdfPage();
+      if (pdfState.doc) {
+        await showPdfPage(pdfState.current + 1);
+      } else {
+        await showBlankPdfPage(pdfState.current + 1);
+      }
+    });
+
+    $('pdfClose').addEventListener('click', () => {
+      if (!pdfState) return;
+      if (!confirm('PDF を閉じますか？（書き出していない書き込みは消えます）')) return;
+      closePdf();
+    });
+
+    // --- 書き込み済み PDF の書き出し（JPEG ページを埋め込んだ PDF を自前生成） ---
+    function dataUrlToBytes(dataUrl) {
+      const bin = atob(dataUrl.split(',')[1]);
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      return bytes;
+    }
+
+    function buildPdfFromJpegs(pages) {
+      // pages: [{ dataUrl(jpeg), pxWidth, pxHeight, ptWidth, ptHeight }]
+      const enc = new TextEncoder();
+      const chunks = [];
+      let pos = 0;
+      const offsets = {};
+      const push = (d) => {
+        const b = typeof d === 'string' ? enc.encode(d) : d;
+        chunks.push(b);
+        pos += b.length;
+      };
+      push('%PDF-1.4\n');
+      offsets[1] = pos;
+      push('1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n');
+      const kids = pages.map((_, k) => `${3 + k * 3} 0 R`).join(' ');
+      offsets[2] = pos;
+      push(`2 0 obj\n<< /Type /Pages /Kids [${kids}] /Count ${pages.length} >>\nendobj\n`);
+      pages.forEach((p, k) => {
+        const pageN = 3 + k * 3;
+        const imgN = pageN + 1;
+        const contN = pageN + 2;
+        offsets[pageN] = pos;
+        push(`${pageN} 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${p.ptWidth} ${p.ptHeight}] /Resources << /XObject << /Im0 ${imgN} 0 R >> >> /Contents ${contN} 0 R >>\nendobj\n`);
+        const imgBytes = dataUrlToBytes(p.dataUrl);
+        offsets[imgN] = pos;
+        push(`${imgN} 0 obj\n<< /Type /XObject /Subtype /Image /Width ${p.pxWidth} /Height ${p.pxHeight} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${imgBytes.length} >>\nstream\n`);
+        push(imgBytes);
+        push('\nendstream\nendobj\n');
+        const content = `q ${p.ptWidth} 0 0 ${p.ptHeight} 0 0 cm /Im0 Do Q`;
+        offsets[contN] = pos;
+        push(`${contN} 0 obj\n<< /Length ${content.length} >>\nstream\n${content}\nendstream\nendobj\n`);
+      });
+      const objCount = 2 + pages.length * 3;
+      const xrefPos = pos;
+      let xref = `xref\n0 ${objCount + 1}\n0000000000 65535 f \n`;
+      for (let n = 1; n <= objCount; n++) {
+        xref += String(offsets[n]).padStart(10, '0') + ' 00000 n \n';
+      }
+      push(xref);
+      push(`trailer\n<< /Size ${objCount + 1} /Root 1 0 R >>\nstartxref\n${xrefPos}\n%%EOF`);
+      return new Blob(chunks, { type: 'application/pdf' });
+    }
+
+    $('pdfExport').addEventListener('click', async () => {
+      if (!pdfState) return;
+      snapshotCurrentPdfPage();
+      showToast('PDF を書き出しています...');
+      try {
+        const pages = [];
+        for (let n = 1; n <= pdfState.pageCount; n++) {
+          const snap = pdfState.snapshots[n];
+          let c;
+          if (snap) {
+            // 書き込み済みページ：スナップショットからページ領域だけ切り出す
+            const img = await loadImg(snap.dataUrl);
+            c = document.createElement('canvas');
+            c.width = Math.max(1, Math.round(snap.crop.w));
+            c.height = Math.max(1, Math.round(snap.crop.h));
+            const cx = c.getContext('2d');
+            cx.drawImage(img, snap.crop.x, snap.crop.y, snap.crop.w, snap.crop.h, 0, 0, c.width, c.height);
+          } else {
+            // 未編集ページ：元 PDF から高解像度で再レンダリング
+            c = await renderPdfPageToCanvas(n, 2);
+          }
+          await drawObjectsOnCanvas(c, pdfState.objects[n] || []);
+          pages.push({
+            dataUrl: c.toDataURL('image/jpeg', 0.9),
+            pxWidth: c.width,
+            pxHeight: c.height,
+            ptWidth: Math.round(c.width / 2),
+            ptHeight: Math.round(c.height / 2),
+          });
+        }
+        const blob = buildPdfFromJpegs(pages);
+        const url = URL.createObjectURL(blob);
+        const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `pdf-memo-${timestamp}.pdf`;
+        link.click();
+        setTimeout(() => URL.revokeObjectURL(url), 10000);
+        showToast('書き込み済み PDF をダウンロードしました');
+      } catch (err) {
+        console.log('PDF export failed:', err);
+        showToast('PDF の書き出しに失敗しました');
+      }
+    });
+
+    window.addEventListener('resize', () => {
+      if (currentTab === 'draw') drawPad.resize();
+      if (currentTab === 'pdf') {
+        // モバイルではソフトキーボードの開閉でも resize が発火する。
+        // テキスト編集中にオブジェクトを作り直すとフォーカスが奪われて
+        // キーボードが即閉じ、入力できなくなるためスキップする。
+        const ae = document.activeElement;
+        if (ae && ae.classList && ae.classList.contains('pdf-obj-text')) return;
+        pdfPad.resize();
+        renderPdfObjects();
+      }
+    });
+
+    // ===== 描画の保存・一覧（常にこのブラウザの IndexedDB に保存） =====
+    async function saveDrawing() {
+      if (!drawPad.hasContent()) {
+        showToast('何か描いてから保存してください');
+        return;
+      }
+      const now = Date.now();
+      const id = currentDrawingId || now;
+      const existing = currentDrawingId ? await idbGet('drawings', currentDrawingId) : null;
+      const entry = {
+        id,
+        name: existing ? existing.name : new Date(now).toLocaleString('ja-JP'),
+        dataUrl: drawPad.toDataURL(),
+        createdAt: existing ? existing.createdAt : now,
+        updatedAt: now,
+      };
+      await idbPut('drawings', entry);
+      currentDrawingId = id;
+      showToast('描画を保存しました');
+    }
+
+    async function renderGallery() {
+      const grid = $('galleryGrid');
+      const empty = $('galleryEmpty');
+      let drawings;
+      try {
+        drawings = await idbGetAll('drawings');
+      } catch (e) {
+        drawings = [];
+      }
+      drawings.sort((a, b) => b.updatedAt - a.updatedAt);
+
+      if (drawings.length === 0) {
+        grid.innerHTML = '';
+        empty.style.display = 'block';
+        return;
+      }
+      empty.style.display = 'none';
+      grid.innerHTML = drawings.map(d => `
+        <div class="gallery-item" data-id="${d.id}">
+          <img src="${d.dataUrl}" alt="${escapeHtml(d.name)}">
+          <div class="g-name">${escapeHtml(d.name)}</div>
+          <button class="g-del" data-id="${d.id}">✕</button>
+        </div>
+      `).join('');
+
+      grid.querySelectorAll('.gallery-item').forEach(item => {
+        item.addEventListener('click', (e) => {
+          if (e.target.classList.contains('g-del')) return;
+          loadDrawing(parseInt(item.dataset.id));
+        });
+      });
+      grid.querySelectorAll('.g-del').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          if (!confirm('この描画を削除しますか？')) return;
+          const id = parseInt(btn.dataset.id);
+          await idbDelete('drawings', id);
+          if (currentDrawingId === id) currentDrawingId = null;
+          renderGallery();
+        });
+      });
+    }
+
+    async function loadDrawing(id) {
+      const entry = await idbGet('drawings', id);
+      if (!entry) return;
+      currentDrawingId = id;
+      drawPad.history = [];
+      drawPad.backgroundImage = null;
+      $('galleryOverlay').classList.remove('show');
+      switchTab('draw');
+      requestAnimationFrame(() => {
+        drawPad.resize();
+        const img = new Image();
+        img.onload = () => {
+          const ctx = $('drawCanvas').getContext('2d');
+          const rect = $('drawCanvas').getBoundingClientRect();
+          ctx.save();
+          ctx.globalCompositeOperation = 'source-over';
+          ctx.fillStyle = '#1a1a1a';
+          ctx.fillRect(0, 0, rect.width, rect.height);
+          ctx.drawImage(img, 0, 0, rect.width, rect.height);
+          ctx.restore();
+          drawPad.history.push(entry.dataUrl);
+        };
+        img.src = entry.dataUrl;
+      });
+      showToast('描画を読み込みました');
+    }
+
+    $('drawSave').addEventListener('click', saveDrawing);
+    $('drawGallery').addEventListener('click', () => {
+      $('galleryOverlay').classList.add('show');
+      renderGallery();
+    });
+    $('galleryClose').addEventListener('click', () => $('galleryOverlay').classList.remove('show'));
+    $('galleryOverlay').addEventListener('click', (e) => {
+      if (e.target === $('galleryOverlay')) $('galleryOverlay').classList.remove('show');
+    });
+
+    // --- スケッチモーダルのパッド ---
+    const sketchPad = createSketchpad($('sketchCanvas'), $('sketchColor'), $('sketchBrush'), $('sketchEraser'));
+
+    $('sketchUndo').addEventListener('click', () => sketchPad.undo());
+    $('sketchClear').addEventListener('click', () => sketchPad.clear());
+    $('sketchCancel').addEventListener('click', () => $('sketchOverlay').classList.remove('show'));
+
+    $('sketchBtn').addEventListener('click', () => {
+      $('sketchOverlay').classList.add('show');
+      sketchPad.backgroundImage = null;
+      requestAnimationFrame(() => {
+        sketchPad.resize();
+        sketchPad.clear();
+      });
+    });
+
+    $('sketchInsert').addEventListener('click', () => {
+      if (!currentMemo) return;
+      if (!sketchPad.hasContent()) {
+        showToast('何か描いてから挿入してください');
+        return;
+      }
+      if (!currentMemo.images) currentMemo.images = [];
+      currentMemo.images.push({ id: Date.now(), dataUrl: sketchPad.toDataURL() });
+      $('sketchOverlay').classList.remove('show');
+      renderAttachments();
+      showToast('スケッチを添付しました');
+    });
+
+    // =========================================================
+    // メモ機能
+    // =========================================================
+    let currentMemo = null;
+
+    function formatDate(timestamp) {
+      const date = new Date(timestamp);
+      const today = new Date();
+      const yesterday = new Date(today);
+      yesterday.setDate(yesterday.getDate() - 1);
+      if (date.toDateString() === today.toDateString()) {
+        return date.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
+      } else if (date.toDateString() === yesterday.toDateString()) {
+        return '昨日';
+      }
+      return date.toLocaleDateString('ja-JP', { month: 'short', day: 'numeric' });
+    }
+
+    function getPreview(content) {
+      return content.replace(/[#*_`\n]/g, '').substring(0, 40) + (content.length > 40 ? '...' : '');
+    }
+
+    // ===== 複数選択モード =====
+    let selectionMode = false;
+    const selectedIds = new Set();
+
+    function updateSelectionHeader() {
+      $('selectCount').textContent = `${selectedIds.size} 件`;
+      $('listHeaderNormal').style.display = selectionMode ? 'none' : 'flex';
+      $('listHeaderSelect').style.display = selectionMode ? 'flex' : 'none';
+      $('memoList').classList.toggle('selecting', selectionMode);
+    }
+
+    function enterSelectionMode() {
+      selectionMode = true;
+      selectedIds.clear();
+      updateSelectionHeader();
+    }
+
+    function exitSelectionMode() {
+      selectionMode = false;
+      selectedIds.clear();
+      updateSelectionHeader();
+      document.querySelectorAll('.memo-item.selected').forEach(el => el.classList.remove('selected'));
+    }
+
+    function toggleSelection(item) {
+      const id = parseInt(item.dataset.id);
+      if (selectedIds.has(id)) {
+        selectedIds.delete(id);
+        item.classList.remove('selected');
+      } else {
+        selectedIds.add(id);
+        item.classList.add('selected');
+      }
+      updateSelectionHeader();
+    }
+
+    async function deleteSelectedMemos() {
+      if (selectedIds.size === 0) {
+        showToast('削除するメモを選択してください');
+        return;
+      }
+      if (!confirm(`選択した ${selectedIds.size} 件のメモを削除しますか？`)) return;
+      let failed = 0;
+      for (const id of selectedIds) {
+        try {
+          await storage.remove({ id, kind: currentTab === 'both' ? 'both' : 'memo' });
+        } catch (e) {
+          failed++;
+        }
+      }
+      const deleted = selectedIds.size - failed;
+      exitSelectionMode();
+      await renderList();
+      showToast(failed > 0 ? `${deleted} 件削除（${failed} 件失敗）` : `${deleted} 件削除しました`);
+    }
+
+    $('selectModeBtn').addEventListener('click', enterSelectionMode);
+    $('selectCancelBtn').addEventListener('click', exitSelectionMode);
+    $('selectDeleteBtn').addEventListener('click', deleteSelectedMemos);
+    $('selectAllBtn').addEventListener('click', () => {
+      const items = document.querySelectorAll('.memo-item');
+      const allSelected = selectedIds.size === items.length && items.length > 0;
+      items.forEach(item => {
+        const id = parseInt(item.dataset.id);
+        if (allSelected) {
+          selectedIds.delete(id);
+          item.classList.remove('selected');
+        } else {
+          selectedIds.add(id);
+          item.classList.add('selected');
+        }
+      });
+      updateSelectionHeader();
+    });
+
+    async function renderList() {
+      let memos;
+      try {
+        memos = await storage.getAll(currentTab);
+      } catch (e) {
+        console.error('load failed:', e);
+        showToast('メモの読み込みに失敗しました');
+        return;
+      }
+      const list = $('memoList');
+      const emptyState = $('emptyState');
+      $('memoCount').textContent = `${memos.length} 件`;
+
+      if (memos.length === 0) {
+        list.innerHTML = '';
+        emptyState.style.display = 'flex';
+        if (selectionMode) exitSelectionMode();
+        return;
+      }
+
+      emptyState.style.display = 'none';
+      list.innerHTML = memos.map(memo => `
+        <li class="memo-item${selectedIds.has(memo.id) ? ' selected' : ''}" data-id="${memo.id}">
+          <span class="memo-check">✓</span>
+          <div class="memo-body">
+            <div class="memo-title">${memo.images && memo.images.length ? '<span class="memo-badge">🎨' + memo.images.length + '</span>' : ''}${escapeHtml(memo.title)}</div>
+            <div class="memo-preview">${escapeHtml(getPreview(memo.content)) || '（空）'}</div>
+            <div class="memo-date">${formatDate(memo.updatedAt)}</div>
+          </div>
+        </li>
+      `).join('');
+      list.classList.toggle('selecting', selectionMode);
+
+      list.querySelectorAll('.memo-item').forEach(item => {
+        item.addEventListener('click', () => {
+          if (selectionMode) {
+            toggleSelection(item);
+          } else {
+            openMemo(parseInt(item.dataset.id));
+          }
+        });
+      });
+    }
+
+    function updateAttachmentsVisibility() {
+      const strip = $('attachments');
+      const show = currentTab === 'both' && currentMemo;
+      strip.classList.toggle('visible', !!show);
+    }
+
+    function renderAttachments() {
+      const strip = $('attachments');
+      if (!currentMemo) { strip.innerHTML = ''; return; }
+      const images = currentMemo.images || [];
+      strip.innerHTML = images.map((img, i) => `
+        <div class="attachment-thumb" data-idx="${i}">
+          <img src="${img.dataUrl}" alt="スケッチ${i + 1}">
+          <button class="att-del" data-idx="${i}">✕</button>
+        </div>
+      `).join('') + `
+        <button class="sketch-add-btn" id="attAddBtn"><span>📐</span>追加</button>
+      `;
+
+      strip.querySelectorAll('.att-del').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const idx = parseInt(btn.dataset.idx);
+          if (!confirm('このスケッチを削除しますか？')) return;
+          currentMemo.images.splice(idx, 1);
+          renderAttachments();
+        });
+      });
+      strip.querySelectorAll('.attachment-thumb img').forEach(img => {
+        img.addEventListener('click', () => {
+          // タップで拡大表示（新規タブ or 画像ビュー）
+          const w = window.open('');
+          if (w) w.document.write(`<body style="margin:0;background:#111;display:flex;align-items:center;justify-content:center;min-height:100vh;"><img src="${img.src}" style="max-width:100%;max-height:100vh;"></body>`);
+        });
+      });
+      const addBtn = $('attAddBtn');
+      if (addBtn) addBtn.addEventListener('click', () => $('sketchBtn').click());
+      updateAttachmentsVisibility();
+    }
+
+    function showListView() {
+      $('listView').classList.remove('hidden');
+      $('editorWrapper').classList.remove('active');
+      $('editorHeader').style.display = 'none';
+      $('editorContainer').style.display = 'none';
+      $('fabBtn').classList.remove('hidden');
+      currentMemo = null;
+      renderList();
+    }
+
+    function showEditorView() {
+      $('listView').classList.add('hidden');
+      $('editorWrapper').classList.add('active');
+      $('editorHeader').style.display = 'block';
+      $('editorContainer').style.display = 'flex';
+      $('fabBtn').classList.add('hidden');
+      renderAttachments();
+    }
+
+    function createNewMemo() {
+      // 選択モード中に新規作成した場合はモードを解除してから開く
+      if (selectionMode) exitSelectionMode();
+      // ここでは保存先に書き込まない。編集画面は必ず開き、
+      // 実際の保存は「保存」ボタン押下時（saveCurrentMemo）に行う。
+      // こうすることで保存先の不調（フォルダ権限切れ等）が
+      // 新規作成そのものをブロックしないようにする。
+      currentMemo = {
+        id: Date.now(),
+        title: '新規メモ',
+        content: '',
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+        images: [],
+        kind: currentTab === 'both' ? 'both' : 'memo',
+      };
+      $('titleInput').value = currentMemo.title;
+      $('contentInput').value = '';
+      updateEditorMeta();
+      showEditorView();
+    }
+
+    async function openMemo(id) {
+      const memos = await storage.getAll(currentTab);
+      const memo = memos.find(m => m.id === id);
+      if (!memo) return;
+      currentMemo = memo;
+      $('titleInput').value = memo.title;
+      $('contentInput').value = memo.content;
+      updateEditorMeta();
+      showEditorView();
+    }
+
+    const DRAFT_KEY = 'unsavedDraft';
+
+    function backupDraft(memo) {
+      try {
+        localStorage.setItem(DRAFT_KEY, JSON.stringify(memo));
+      } catch (e) { /* 容量不足等は無視（保存できないだけで内容はまだ画面上にある） */ }
+    }
+
+    function clearDraftBackup() {
+      localStorage.removeItem(DRAFT_KEY);
+    }
+
+    let saveFailStreak = 0;
+
+    async function saveCurrentMemo() {
+      if (!currentMemo) return;
+      currentMemo.title = $('titleInput').value || '新規メモ';
+      currentMemo.content = $('contentInput').value;
+      currentMemo.updatedAt = Date.now();
+      try {
+        await storage.save(currentMemo);
+      } catch (e) {
+        // 保存先の不調でも内容を失わないよう一時退避し、画面には留まる
+        backupDraft(currentMemo);
+        saveFailStreak++;
+        if (saveFailStreak >= 2) {
+          $('saveFailOverlay').classList.add('show');
+        } else {
+          showToast('保存できませんでした（内容は保持されています）。もう一度「保存」を押してください', 4500);
+        }
+        return;
+      }
+      saveFailStreak = 0;
+      clearDraftBackup();
+      showListView();
+    }
+
+    async function deleteCurrentMemo() {
+      if (!currentMemo) return;
+      if (!confirm('このメモを削除しますか？')) return;
+      await storage.remove(currentMemo);
+      showListView();
+    }
+
+    function downloadCurrentMemo(format = 'md') {
+      if (!currentMemo) return;
+      const title = $('titleInput').value || '無題';
+      let content = $('contentInput').value;
+      // 添付スケッチも Markdown 画像として同梱（.txt では画像行は省略）
+      if (currentMemo.images && currentMemo.images.length > 0) {
+        if (format === 'md') {
+          content += `\n\n`;
+          currentMemo.images.forEach((img, i) => {
+            content += `![スケッチ${i + 1}](${img.dataUrl})\n`;
+          });
+        }
+      }
+      const ext = format === 'txt' ? 'txt' : 'md';
+      const mime = format === 'txt' ? 'text/plain;charset=utf-8' : 'text/markdown;charset=utf-8';
+      const filename = `${title.replace(/[\\/:*?"<>|]/g, '_')}.${ext}`;
+      const blob = new Blob([content], { type: mime });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      a.style.display = 'none';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+
+    function updateEditorMeta() {
+      if (!currentMemo) return;
+      const createdDate = new Date(currentMemo.createdAt).toLocaleString('ja-JP');
+      $('editorMeta').textContent = `作成: ${createdDate}`;
+    }
+
+    $('fabBtn').addEventListener('click', createNewMemo);
+    $('saveBtn').addEventListener('click', saveCurrentMemo);
+    $('downloadBtn').addEventListener('click', () => {
+      const choice = confirm('OK: テキスト(.txt) でダウンロード\nキャンセル: Markdown(.md) でダウンロード');
+      downloadCurrentMemo(choice ? 'txt' : 'md');
+    });
+    $('deleteBtn').addEventListener('click', deleteCurrentMemo);
+
+    // 本文入力欄で Tab キーをフォーカス移動ではなくタブ文字の入力にする
+    $('contentInput').addEventListener('keydown', (e) => {
+      if (e.key !== 'Tab') return;
+      e.preventDefault();
+      const ta = e.target;
+      const start = ta.selectionStart;
+      const end = ta.selectionEnd;
+      if (e.shiftKey) {
+        // Shift+Tab: 行頭のタブ（または先頭スペース）を1つ外す
+        const lineStart = ta.value.lastIndexOf('\n', start - 1) + 1;
+        if (ta.value[lineStart] === '\t') {
+          ta.value = ta.value.slice(0, lineStart) + ta.value.slice(lineStart + 1);
+          ta.selectionStart = ta.selectionEnd = Math.max(lineStart, start - 1);
+        }
+        return;
+      }
+      ta.value = ta.value.slice(0, start) + '\t' + ta.value.slice(end);
+      ta.selectionStart = ta.selectionEnd = start + 1;
+    });
+
+    // ===== ブックマーク案内 =====
+    $('installBtn').addEventListener('click', () => {
+      let steps;
+      if (isIOS) {
+        steps = [
+          '画面下（または上部）の「共有」アイコン（□に↑）をタップ',
+          '「ブックマークを追加」をタップ',
+          '「保存」をタップして完了',
+        ];
+      } else if (isAndroid) {
+        steps = [
+          'アドレスバー右側の ☆（星マーク）をタップ',
+          '見当たらない場合はブラウザメニュー「⋮」→「ブックマーク」→「追加」',
+          '保存先を確認して「保存」をタップ',
+        ];
+      } else {
+        steps = [
+          'キーボードの Ctrl + D（Mac は Cmd + D）を押す',
+          '保存先フォルダを確認して「完了」をクリック',
+        ];
+      }
+      $('guideSteps').innerHTML = steps.map(s => `<li>${s}</li>`).join('');
+      $('guideOverlay').classList.add('show');
+    });
+    $('guideClose').addEventListener('click', () => $('guideOverlay').classList.remove('show'));
+    $('guideOverlay').addEventListener('click', (e) => {
+      if (e.target === $('guideOverlay')) $('guideOverlay').classList.remove('show');
+    });
+
+    function restoreDraftIfAny() {
+      let raw;
+      try {
+        raw = localStorage.getItem(DRAFT_KEY);
+      } catch (e) { return false; }
+      if (!raw) return false;
+      let memo;
+      try {
+        memo = JSON.parse(raw);
+      } catch (e) { clearDraftBackup(); return false; }
+      currentMemo = memo;
+      $('titleInput').value = memo.title;
+      $('contentInput').value = memo.content;
+      updateEditorMeta();
+      showEditorView();
+      showToast('前回保存できなかった内容を復元しました。もう一度「保存」を押してください', 4500);
+      return true;
+    }
+
+    // ===== 初期化 =====
+    (async () => {
+      try {
+        const ready = await initStorage();
+        const params = new URLSearchParams(window.location.search);
+        if (restoreDraftIfAny()) {
+          // 復元した下書きがあれば編集画面のまま
+        } else if (ready && params.get('action') === 'new') {
+          await createNewMemo();
+        } else {
+          await renderList();
+        }
+      } catch (err) {
+        console.error('init failed:', err);
+        alert('ストレージの初期化に失敗しました。ブラウザの設定を確認してください。');
+      }
+    })();
+  </script>
+</body>
+</html>

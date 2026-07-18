@@ -1,22 +1,11 @@
-# メモ
+# desktop-tutorial
 
-Markdown対応のローカルメモアプリ
+チュートリアル用PWAアプリ集。
 
-## 機能
+## アプリ一覧
 
-- Markdown編集
-- ローカル保存（IndexedDB）
-- オフライン完全稼働
-- PWA（ホームスクリーン追加可）
+- [メモ](./memo/) — Markdown対応のローカルメモアプリ
+- [SNS Quick Launcher](./sns-launcher/) — 複数SNSアカウントをワンクリックで開くランチャー
 
-## インストール
-
-このリポジトリを GitHub Pages で公開すると自動でアプリ化されます。
-
-### ホームスクリーン追加方法
-
-**Chrome/Android**
-- アドレスバー → 「アプリをインストール」
-
-**Safari/iOS**
-- 共有ボタン → 「ホーム画面に追加」
+各アプリは独立したPWA（それぞれ専用のmanifest.json・Service Workerを持つ）です。
+ホーム画面に追加する場合は、各アプリのURLを直接開いてから追加してください。

@@ -13,7 +13,8 @@ A fully functional PWA memo application with:
 - Download memos as .md files
 - PWA installation on mobile
 
-**Live:** https://nono-6005.github.io/desktop-tutorial/
+**Live:** https://nono-6005.github.io/desktop-tutorial/memo/
+(Files live under `memo/`; the root `index.html` just redirects there. Kept isolated from other apps so each has its own PWA scope — see "PWA scope isolation" below.)
 
 ### sns-launcher (SNS Quick Launcher)
 
@@ -44,10 +45,24 @@ See `.claude/skills/memo-pwa.md` for details.
 
 ## Key Files
 
-- `index.html` - Main app (UI + JavaScript + IndexedDB)
-- `manifest.json` - PWA configuration
-- `sw.js` - Service Worker (caching, offline support)
+- `index.html` - Root redirect to `memo/`
+- `memo/index.html` - Memo app (UI + JavaScript + IndexedDB)
+- `memo/manifest.json` - Memo PWA configuration (scope: `/memo/`)
+- `memo/sw.js` - Memo Service Worker (caching, offline support)
+- `sns-launcher/index.html` - SNS Launcher app
+- `sns-launcher/manifest.json` - SNS Launcher PWA configuration (scope: `/sns-launcher/`)
+- `sns-launcher/sw.js` - SNS Launcher Service Worker
 - `README.md` - User-facing docs
+
+## PWA scope isolation
+
+Each app must live in its own subdirectory with its own `manifest.json`/`sw.js`, and
+`manifest.json`'s `scope` must not overlap with another app's. A PWA's manifest `scope`
+(e.g. `/memo/`) is a URL prefix: navigating to any URL under it, from inside that app's
+already-open standalone window, stays in the same window instead of launching as a
+separate app. If two apps shared scope `/` at the repo root, opening one from inside the
+other's installed window would just navigate in place rather than opening as a distinct
+app. Do not add a new app directly at the repo root — always give it its own folder.
 
 ## Technical Stack
 
