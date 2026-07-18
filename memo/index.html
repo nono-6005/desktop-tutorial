@@ -175,6 +175,47 @@
       transform: translate(-50%, 0);
     }
 
+    /* ===== 更新通知バナー ===== */
+    .update-banner {
+      position: fixed;
+      left: 50%;
+      bottom: 2rem;
+      transform: translate(-50%, 1rem);
+      display: flex;
+      align-items: center;
+      gap: 0.8rem;
+      background: #2a2a2a;
+      color: #f5e6d3;
+      padding: 0.8rem 1rem 0.8rem 1.2rem;
+      border-radius: 12px;
+      font-size: 0.9rem;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+      border: 1px solid rgba(217, 119, 87, 0.5);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s ease, transform 0.25s ease;
+      z-index: 600;
+      max-width: 90vw;
+    }
+
+    .update-banner.show {
+      opacity: 1;
+      transform: translate(-50%, 0);
+      pointer-events: auto;
+    }
+
+    .update-banner button {
+      background: #d97757;
+      color: #fff;
+      border: none;
+      padding: 0.5rem 0.9rem;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
     /* ===== モーダル共通 ===== */
     .overlay {
       position: fixed;
@@ -1108,6 +1149,12 @@
     <!-- トースト -->
     <div class="toast" id="toast"></div>
 
+    <!-- 更新通知バナー -->
+    <div class="update-banner" id="updateBanner">
+      <span>新しいバージョンがあります</span>
+      <button id="updateBannerBtn" type="button">更新</button>
+    </div>
+
     <!-- ===== 保存先選択ウィザード ===== -->
     <div class="overlay" id="setupOverlay">
       <div class="modal">
@@ -1229,6 +1276,11 @@
     const isAndroid = /android/.test(ua);
     // ===== Service Worker =====
     if ('serviceWorker' in navigator) {
+      // 既に別のワーカーに制御されているページでのみ「更新」を通知する。
+      // （初回インストール時の claim() でも controllerchange は発火するため、
+      //   それを新バージョン通知と誤認しないようにするガード）
+      const hadControllerAtLoad = !!navigator.serviceWorker.controller;
+
       navigator.serviceWorker.register('./sw.js').then((reg) => {
         // アプリを開き直した時・前面に戻した時に更新を確認し、
         // 新しいバージョンの取り込みが遅れないようにする
@@ -1237,6 +1289,16 @@
           if (document.visibilityState === 'visible') reg.update().catch(() => {});
         });
       }).catch(() => {});
+
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (!hadControllerAtLoad) return;
+        const banner = $('updateBanner');
+        if (banner) banner.classList.add('show');
+      });
+
+      $('updateBannerBtn')?.addEventListener('click', () => {
+        window.location.reload();
+      });
     }
 
     // =========================================================
