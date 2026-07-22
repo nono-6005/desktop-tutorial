@@ -506,9 +506,9 @@
         function loadAccounts() {
             const saved = localStorage.getItem('snsAccounts');
             return saved ? JSON.parse(saved) : [
-                { id: 1, platform: 'threads', url: 'https://www.threads.net/@doragon', displayName: 'Threads', description: '', group: '' },
-                { id: 2, platform: 'x', url: 'https://x.com/doragon', displayName: 'X', description: '', group: '' },
-                { id: 3, platform: 'substack', url: 'https://substack.com/@doragon', displayName: 'Substack', description: '', group: '' }
+                { id: 1, platform: 'threads', url: 'https://www.threads.net/@doragon', displayName: 'Threads', description: '', group: 'SNS' },
+                { id: 2, platform: 'x', url: 'https://x.com/doragon', displayName: 'X', description: '', group: 'SNS' },
+                { id: 3, platform: 'substack', url: 'https://substack.com/@doragon', displayName: 'Substack', description: '', group: 'Newsletter' }
             ];
         }
 
