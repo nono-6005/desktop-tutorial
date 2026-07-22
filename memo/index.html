@@ -629,7 +629,7 @@
       color: #555;
     }
 
-    /* スケッチ添付ストリップ（両方モード） */
+    /* 画像添付ストリップ */
     .attachments {
       display: none;
       gap: 0.5rem;
@@ -804,25 +804,6 @@
       touch-action: none;
     }
 
-    /* スケッチモーダル */
-    .sketch-modal {
-      max-width: 640px;
-      display: flex;
-      flex-direction: column;
-      height: min(80vh, 620px);
-      padding: 1rem;
-    }
-
-    .sketch-modal .draw-toolbar {
-      border-bottom: none;
-      background: none;
-      padding: 0.4rem 0;
-    }
-
-    .sketch-modal .draw-canvas-holder {
-      padding: 0;
-    }
-
     /* ===== PDF タブのオブジェクト（テキスト・画像）レイヤー ===== */
     #pdfObjects {
       position: absolute;
@@ -898,17 +879,6 @@
       border-radius: 50%;
       cursor: nwse-resize;
       touch-action: none;
-    }
-
-    .sketch-actions {
-      display: flex;
-      gap: 0.5rem;
-      margin-top: 0.75rem;
-      flex-shrink: 0;
-    }
-
-    .sketch-actions .modal-btn {
-      margin-top: 0;
     }
 
     /* ===== 設定モーダル ===== */
@@ -1054,7 +1024,7 @@
             <div class="header-edit">
               <button id="saveBtn">← 保存</button>
               <div style="display: flex; gap: 0.25rem;">
-                <button id="sketchBtn" style="display: none;">📐 スケッチ</button>
+                <button id="imageInsertBtn">🖼️ 画像</button>
                 <button id="downloadBtn">📥</button>
                 <button class="delete-btn" id="deleteBtn">🗑</button>
               </div>
@@ -1066,6 +1036,7 @@
             <div class="attachments" id="attachments"></div>
             <div class="editor-meta" id="editorMeta"></div>
           </div>
+          <input type="file" id="memoImageInput" accept="image/*" multiple style="display: none;">
         </div>
       </div>
     </div>
@@ -1208,33 +1179,6 @@
         <button class="modal-btn" id="changeStorageBtn">メモの保存先を変更</button>
         <button class="modal-btn secondary" id="manualBtn">📖 取扱説明書</button>
         <button class="modal-btn secondary" id="settingsClose">閉じる</button>
-      </div>
-    </div>
-
-    <!-- ===== スケッチモーダル（両方モード用） ===== -->
-    <div class="overlay" id="sketchOverlay">
-      <div class="modal sketch-modal">
-        <h2 style="margin-bottom: 0.25rem;">📐 スケッチ</h2>
-        <div class="draw-toolbar">
-          <input type="color" class="color-picker" id="sketchColor" value="#f5e6d3">
-          <select class="brush-select" id="sketchBrush">
-            <option value="1">極細</option>
-            <option value="2">細</option>
-            <option value="4" selected>中</option>
-            <option value="6">太</option>
-            <option value="10">極太</option>
-          </select>
-          <button class="draw-btn" id="sketchEraser">🧽</button>
-          <button class="draw-btn" id="sketchUndo">↶</button>
-          <button class="draw-btn" id="sketchClear">クリア</button>
-        </div>
-        <div class="draw-canvas-holder">
-          <canvas id="sketchCanvas"></canvas>
-        </div>
-        <div class="sketch-actions">
-          <button class="modal-btn" id="sketchInsert">メモに挿入</button>
-          <button class="modal-btn secondary" id="sketchCancel">キャンセル</button>
-        </div>
       </div>
     </div>
 
@@ -1451,7 +1395,7 @@
       if (memo.images && memo.images.length > 0) {
         md += `\n\n${ATTACH_MARKER}\n`;
         memo.images.forEach((img, i) => {
-          md += `![sketch-${i + 1}](${img.dataUrl})\n`;
+          md += `![image-${i + 1}](${img.dataUrl})\n`;
         });
       }
       return md;
@@ -1492,7 +1436,7 @@
     }
 
     // メモの種類（kind）で保存先の中身を分離する。
-    // 'memo' = 「メモ」タブで作成、'both' = 「両方」タブで作成（スケッチ添付可）。
+    // 'memo' = 「メモ」タブで作成、'both' = 「両方」タブで作成。
     // 既存データに kind が無い場合は 'memo' 扱い（後方互換）。
     function memoKindOf(memo) {
       return memo.kind === 'both' ? 'both' : 'memo';
@@ -1700,8 +1644,6 @@
         $('fabBtn').classList.add('hidden');
         requestAnimationFrame(() => { pdfPad.resize(); renderPdfObjects(); });
       } else {
-        // 「両方」モードのみエディタにスケッチボタンを表示
-        $('sketchBtn').style.display = (tab === 'both') ? '' : 'none';
         updateAttachmentsVisibility();
         if (!$('editorWrapper').classList.contains('active')) {
           $('fabBtn').classList.remove('hidden');
@@ -1716,7 +1658,7 @@
     });
 
     // =========================================================
-    // 描画パッド（描画タブ・スケッチモーダルで共用のファクトリ）
+    // 描画パッド（描画タブ・PDFタブで共用のファクトリ）
     // =========================================================
     function createSketchpad(canvas, colorInput, brushSelect, eraserBtn) {
       const ctx = canvas.getContext('2d');
@@ -2528,33 +2470,28 @@
       if (e.target === $('galleryOverlay')) $('galleryOverlay').classList.remove('show');
     });
 
-    // --- スケッチモーダルのパッド ---
-    const sketchPad = createSketchpad($('sketchCanvas'), $('sketchColor'), $('sketchBrush'), $('sketchEraser'));
-
-    $('sketchUndo').addEventListener('click', () => sketchPad.undo());
-    $('sketchClear').addEventListener('click', () => sketchPad.clear());
-    $('sketchCancel').addEventListener('click', () => $('sketchOverlay').classList.remove('show'));
-
-    $('sketchBtn').addEventListener('click', () => {
-      $('sketchOverlay').classList.add('show');
-      sketchPad.backgroundImage = null;
-      requestAnimationFrame(() => {
-        sketchPad.resize();
-        sketchPad.clear();
-      });
+    // --- メモへの画像挿入 ---
+    $('imageInsertBtn').addEventListener('click', () => {
+      if (!currentMemo) return;
+      $('memoImageInput').click();
     });
 
-    $('sketchInsert').addEventListener('click', () => {
-      if (!currentMemo) return;
-      if (!sketchPad.hasContent()) {
-        showToast('何か描いてから挿入してください');
-        return;
-      }
+    $('memoImageInput').addEventListener('change', async (e) => {
+      const files = [...e.target.files];
+      e.target.value = '';
+      if (!files.length || !currentMemo) return;
       if (!currentMemo.images) currentMemo.images = [];
-      currentMemo.images.push({ id: Date.now(), dataUrl: sketchPad.toDataURL() });
-      $('sketchOverlay').classList.remove('show');
+      for (const file of files) {
+        const dataUrl = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result);
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+        currentMemo.images.push({ id: Date.now() + Math.random(), dataUrl });
+      }
       renderAttachments();
-      showToast('スケッチを添付しました');
+      showToast('画像を挿入しました');
     });
 
     // =========================================================
@@ -2679,7 +2616,7 @@
         <li class="memo-item${selectedIds.has(memo.id) ? ' selected' : ''}" data-id="${memo.id}">
           <span class="memo-check">✓</span>
           <div class="memo-body">
-            <div class="memo-title">${memo.images && memo.images.length ? '<span class="memo-badge">🎨' + memo.images.length + '</span>' : ''}${escapeHtml(memo.title)}</div>
+            <div class="memo-title">${memo.images && memo.images.length ? '<span class="memo-badge">🖼️' + memo.images.length + '</span>' : ''}${escapeHtml(memo.title)}</div>
             <div class="memo-preview">${escapeHtml(getPreview(memo.content)) || '（空）'}</div>
             <div class="memo-date">${formatDate(memo.updatedAt)}</div>
           </div>
@@ -2700,8 +2637,7 @@
 
     function updateAttachmentsVisibility() {
       const strip = $('attachments');
-      const show = currentTab === 'both' && currentMemo;
-      strip.classList.toggle('visible', !!show);
+      strip.classList.toggle('visible', !!currentMemo);
     }
 
     function renderAttachments() {
@@ -2710,18 +2646,18 @@
       const images = currentMemo.images || [];
       strip.innerHTML = images.map((img, i) => `
         <div class="attachment-thumb" data-idx="${i}">
-          <img src="${img.dataUrl}" alt="スケッチ${i + 1}">
+          <img src="${img.dataUrl}" alt="画像${i + 1}">
           <button class="att-del" data-idx="${i}">✕</button>
         </div>
       `).join('') + `
-        <button class="sketch-add-btn" id="attAddBtn"><span>📐</span>追加</button>
+        <button class="sketch-add-btn" id="attAddBtn"><span>🖼️</span>追加</button>
       `;
 
       strip.querySelectorAll('.att-del').forEach(btn => {
         btn.addEventListener('click', (e) => {
           e.stopPropagation();
           const idx = parseInt(btn.dataset.idx);
-          if (!confirm('このスケッチを削除しますか？')) return;
+          if (!confirm('この画像を削除しますか？')) return;
           currentMemo.images.splice(idx, 1);
           renderAttachments();
         });
@@ -2734,7 +2670,7 @@
         });
       });
       const addBtn = $('attAddBtn');
-      if (addBtn) addBtn.addEventListener('click', () => $('sketchBtn').click());
+      if (addBtn) addBtn.addEventListener('click', () => $('imageInsertBtn').click());
       updateAttachmentsVisibility();
     }
 
@@ -2838,12 +2774,12 @@
       if (!currentMemo) return;
       const title = $('titleInput').value || '無題';
       let content = $('contentInput').value;
-      // 添付スケッチも Markdown 画像として同梱（.txt では画像行は省略）
+      // 添付画像も Markdown 画像として同梱（.txt では画像行は省略）
       if (currentMemo.images && currentMemo.images.length > 0) {
         if (format === 'md') {
           content += `\n\n`;
           currentMemo.images.forEach((img, i) => {
-            content += `![スケッチ${i + 1}](${img.dataUrl})\n`;
+            content += `![image-${i + 1}](${img.dataUrl})\n`;
           });
         }
       }
