@@ -1125,7 +1125,7 @@
             <div class="header-edit">
               <button id="saveBtn">← 保存</button>
               <div style="display: flex; gap: 0.25rem;">
-                <button id="imageInsertBtn">🖼️ 画像</button>
+                <button id="imageInsertBtn" style="display: none;">🖼️ 画像</button>
                 <button id="downloadBtn">📥</button>
                 <button class="delete-btn" id="deleteBtn">🗑</button>
               </div>
@@ -1762,6 +1762,8 @@
         $('fabBtn').classList.add('hidden');
         requestAnimationFrame(() => { pdfPad.resize(); renderPdfObjects(); });
       } else {
+        // 画像挿入は「両方」タブのみで使用可能
+        $('imageInsertBtn').style.display = (tab === 'both') ? '' : 'none';
         updateAttachmentsVisibility();
         if (!$('editorWrapper').classList.contains('active')) {
           $('fabBtn').classList.remove('hidden');
@@ -2827,7 +2829,7 @@
 
     function updateAttachmentsVisibility() {
       const strip = $('attachments');
-      strip.classList.toggle('visible', !!currentMemo);
+      strip.classList.toggle('visible', currentTab === 'both' && !!currentMemo);
     }
 
     function renderAttachments() {
