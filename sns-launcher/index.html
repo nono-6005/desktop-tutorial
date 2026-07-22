@@ -383,7 +383,7 @@
     <div class="container">
         <div class="header">
             <h1>🚀 SNS Quick Launcher</h1>
-            <p>ワンクリックでSNSを開く</p>
+            <p>ワンクリックでSNSを開く · <a href="#" onclick="event.preventDefault(); openSecurityModal();" style="color: inherit; text-decoration: underline;">🔒 セキュリティについて</a></p>
         </div>
         
         <div id="accountsContainer"></div>
@@ -449,6 +449,22 @@
             <div id="accountsList" class="account-list"></div>
             <div class="form-actions">
                 <button class="btn-secondary" onclick="closeEditModal()" style="flex: 1;">閉じる</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- セキュリティ情報モーダル -->
+    <div class="modal" id="securityModal" onclick="if(event.target.id==='securityModal')closeSecurityModal()">
+        <div class="modal-content">
+            <div class="modal-header">🔒 セキュリティについて</div>
+            <div style="font-size: 13px; color: #555; line-height: 1.6;">
+                <p style="margin-bottom: 10px;">このアプリはサーバーを持たず、登録したアカウント情報（プラットフォーム・URL/ユーザー名・表示名・説明・グループ）は外部に送信されません。すべて端末のブラウザ内（LocalStorage）にのみ保存されます。</p>
+                <p style="margin-bottom: 10px;"><b>暗号化はされていません。</b>同じ端末・同じブラウザを使える人は登録内容を見られる状態にあります。公開SNSアカウントのURL程度を想定しており、パスワードなど機密情報は登録しないでください。</p>
+                <p style="margin-bottom: 10px;">クラウド同期は行われないため、別端末とは自動で共有されません。ブラウザのサイトデータを消去すると登録内容も消えます。</p>
+                <p>共有端末で使う場合、使い終わったらブラウザの「サイトの設定」からこのサイトのデータを削除することをおすすめします。</p>
+            </div>
+            <div class="form-actions">
+                <button class="btn-secondary" onclick="closeSecurityModal()" style="flex: 1;">閉じる</button>
             </div>
         </div>
     </div>
@@ -610,6 +626,14 @@
 
         function closeEditModal() {
             document.getElementById('editModal').classList.remove('active');
+        }
+
+        function openSecurityModal() {
+            document.getElementById('securityModal').classList.add('active');
+        }
+
+        function closeSecurityModal() {
+            document.getElementById('securityModal').classList.remove('active');
         }
 
         function renderAccountsList() {
