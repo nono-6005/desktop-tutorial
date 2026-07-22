@@ -1199,6 +1199,7 @@
         <button class="draw-btn" id="pdfPrev">◀ 前</button>
         <span id="pdfPageInfo" style="align-self: center; color: #f5e6d3; font-size: 0.85rem; padding: 0 0.3rem;">1 / 1</span>
         <button class="draw-btn" id="pdfNext">次 ▶</button>
+        <button class="draw-btn" id="pdfAddPage">➕ ページ追加</button>
         <button class="draw-btn" id="pdfClose">✕ 閉じる</button>
       </div>
       <div class="draw-canvas-holder" style="position: relative;">
@@ -2000,7 +2001,7 @@
     }
 
     async function renderPdfPageToCanvas(pageNum, scale) {
-      if (!pdfState.doc) {
+      if (!pdfState.doc || pageNum > pdfState.doc.numPages) {
         return createBlankPdfPage();
       }
       const page = await pdfState.doc.getPage(pageNum);
@@ -2372,6 +2373,14 @@
       } else {
         await showBlankPdfPage(pdfState.current + 1);
       }
+    });
+
+    $('pdfAddPage').addEventListener('click', async () => {
+      if (!pdfState) return;
+      snapshotCurrentPdfPage();
+      pdfState.pageCount += 1;
+      await showBlankPdfPage(pdfState.pageCount);
+      showToast(`ページを追加しました（全 ${pdfState.pageCount} ページ）`);
     });
 
     $('pdfClose').addEventListener('click', () => {
