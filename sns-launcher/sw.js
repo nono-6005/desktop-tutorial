@@ -1,4 +1,4 @@
-const CACHE_NAME = 'sns-launcher-v9';
+const CACHE_NAME = 'sns-launcher-v10';
 const ASSETS_TO_CACHE = [
   './index.html',
   './manual.html',
