@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#667eea">
+  <title>取扱説明書 - SNS Quick Launcher</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', sans-serif;
+      background: linear-gradient(180deg, #2a2550 0%, #3a3068 50%, #2a2550 100%);
+      color: #e8e6f0;
+      min-height: 100vh;
+    }
+    .wrap {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 1.25rem 1rem 4rem;
+    }
+    .back {
+      display: inline-block;
+      color: #a9b6ff;
+      text-decoration: none;
+      font-size: 0.9rem;
+      margin-bottom: 1rem;
+    }
+    h1 {
+      color: #ffffff;
+      font-size: 1.4rem;
+      font-weight: 500;
+      margin-bottom: 0.4rem;
+    }
+    .sub { color: #b8b3d6; font-size: 0.85rem; margin-bottom: 1.5rem; }
+    h2 {
+      color: #ffffff;
+      font-size: 1.1rem;
+      font-weight: 500;
+      margin: 2rem 0 0.75rem;
+      padding-bottom: 0.4rem;
+      border-bottom: 1px solid rgba(150, 130, 220, 0.3);
+    }
+    h3 {
+      color: #cfc9ee;
+      font-size: 0.95rem;
+      font-weight: 500;
+      margin: 1.25rem 0 0.4rem;
+    }
+    p, li { font-size: 0.9rem; line-height: 1.7; }
+    ul, ol { padding-left: 1.4rem; margin: 0.4rem 0 0.8rem; }
+    li { margin-bottom: 0.25rem; }
+    .card {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(150, 130, 220, 0.2);
+      border-radius: 12px;
+      padding: 1rem;
+      margin: 0.75rem 0;
+    }
+    .btn-label {
+      display: inline-block;
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      border-radius: 6px;
+      padding: 0.05rem 0.45rem;
+      font-size: 0.85rem;
+      color: #ffffff;
+      white-space: nowrap;
+    }
+    .note {
+      background: rgba(102, 126, 234, 0.15);
+      border-left: 3px solid #667eea;
+      padding: 0.6rem 0.8rem;
+      border-radius: 0 8px 8px 0;
+      font-size: 0.85rem;
+      margin: 0.75rem 0;
+    }
+    .warn {
+      background: rgba(200, 60, 50, 0.15);
+      border-left: 3px solid #e74c3c;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <a class="back" href="./index.html">← アプリに戻る</a>
+    <h1>📖 取扱説明書</h1>
+    <p class="sub">複数のSNSアカウントをワンクリックで開けるランチャーアプリです。データはすべてこの端末の中に保存されます。</p>
+
+    <h2>🚀 アカウントを開く</h2>
+    <div class="card">
+      <ul>
+        <li>登録済みのアカウントはグループごとに見出し付きで一覧表示されます</li>
+        <li>ボタンをタップすると、そのSNSアカウントのページへ直接移動します</li>
+      </ul>
+    </div>
+
+    <h2>➕ アカウントの追加</h2>
+    <div class="card">
+      <ul>
+        <li><span class="btn-label">＋ 追加</span> ボタンからプラットフォーム・URL/ユーザー名・表示名・説明・グループを入力して登録</li>
+        <li>プラットフォームを選ぶと、ユーザー名だけの入力からでも正しいURLを自動生成します（<code>@</code>付きでも可）</li>
+        <li><code>http(s)://</code> から始まるURLをそのまま入力することもできます</li>
+        <li>グループ名は自由入力です。既存のグループ名を入力候補から選ぶこともできます</li>
+      </ul>
+    </div>
+
+    <h2>⚙️ アカウントの管理</h2>
+    <div class="card">
+      <ul>
+        <li><span class="btn-label">⚙️ 編集</span> から登録済みアカウントの一覧を確認・削除できます</li>
+        <li>削除は取り消せないため、確認ダイアログでよく確認してから操作してください</li>
+      </ul>
+    </div>
+
+    <h2>📱 ホーム画面に追加（アプリ化）</h2>
+    <div class="card">
+      <ul>
+        <li><b>Android（Chrome）</b>：メニュー「⋮」→「ホーム画面に追加」→「インストール」</li>
+        <li><b>iPhone（Safari）</b>：共有ボタン（□に↑）→「ホーム画面に追加」</li>
+        <li>追加後はアイコンから起動でき、オフラインでも使えます</li>
+      </ul>
+    </div>
+
+    <h2>🔒 セキュリティについて</h2>
+    <div class="card">
+      <ul>
+        <li>このアプリはサーバーを持たず、登録したアカウント情報（プラットフォーム・URL/ユーザー名・表示名・説明・グループ）は外部に送信されません。すべて端末のブラウザ内（LocalStorage）にのみ保存されます</li>
+        <li>保存データは<b>暗号化されていません</b>。同じ端末・同じブラウザを使える人は登録内容を見られる状態にあります。公開SNSアカウントのURL程度を想定しており、パスワードなど機密情報は登録しないでください</li>
+        <li>クラウド同期は行われません。別の端末とは自動で共有されないため、ブラウザのサイトデータを消去すると登録内容も消えます</li>
+        <li>アカウントの表示名・説明・URLを画面に表示する際はエスケープ処理を行っており、登録内容にスクリプトのような文字列を書いても実行されません</li>
+      </ul>
+      <div class="note warn">共有PCや家族と共用の端末で使う場合、ブラウザを閉じてもデータは残り続けます。使い終わったら「サイトの設定」からこのサイトのデータを削除することをおすすめします。</div>
+    </div>
+
+    <h2>❓ 困ったとき</h2>
+    <div class="card">
+      <ul>
+        <li><b>最新版にならない</b>：アプリを完全に終了して開き直してください</li>
+        <li><b>それでも古い</b>：ブラウザの「サイトの設定」からこのサイトの<b>キャッシュのみ</b>削除（「データ削除」は登録アカウントが消えるので注意）</li>
+      </ul>
+    </div>
+  </div>
+</body>
+</html>
