@@ -1,4 +1,4 @@
-const CACHE_NAME = 'memo-app-v37';
+const CACHE_NAME = 'memo-app-v38';
 const ASSETS_TO_CACHE = [
   './index.html',
   './manual.html',
