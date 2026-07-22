@@ -1286,7 +1286,6 @@
         </div>
         <button class="modal-btn" id="changeStorageBtn">メモの保存先を変更</button>
         <button class="modal-btn secondary" id="manualBtn">📖 取扱説明書</button>
-        <button class="modal-btn secondary" id="contactBtn">📮 ご意見・不具合の報告</button>
         <button class="modal-btn secondary" id="settingsClose">閉じる</button>
       </div>
     </div>
@@ -1711,7 +1710,7 @@
     });
 
     // ===== 設定モーダル =====
-    const APP_VERSION = 'v43';
+    const APP_VERSION = 'v44';
     $('settingsBtn').addEventListener('click', async () => {
       $('settingsStorage').textContent = storage.label();
       $('settingsVersion').textContent = APP_VERSION;
@@ -1731,11 +1730,6 @@
       }
     });
     $('manualBtn').addEventListener('click', () => { window.location.href = './manual.html'; });
-    $('contactBtn').addEventListener('click', () => {
-      const subject = encodeURIComponent('メモアプリへのご意見・不具合報告');
-      const body = encodeURIComponent(`（ここに内容をご記入ください）\n\n---\nアプリバージョン: ${APP_VERSION}`);
-      window.location.href = `mailto:raasan7@gmail.com?subject=${subject}&body=${body}`;
-    });
     $('settingsClose').addEventListener('click', () => $('settingsOverlay').classList.remove('show'));
     $('changeStorageBtn').addEventListener('click', () => {
       $('settingsOverlay').classList.remove('show');
