@@ -510,6 +510,102 @@
       margin-right: 0.4rem;
     }
 
+    .memo-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.3rem;
+      margin-bottom: 0.4rem;
+    }
+
+    .memo-tag {
+      font-size: 0.68rem;
+      color: #b4783c;
+      background: rgba(180, 120, 60, 0.15);
+      border-radius: 3px;
+      padding: 0.1rem 0.4rem;
+    }
+
+    /* 検索・グループ/タグ絞り込み */
+    .search-bar {
+      padding: 0.6rem 1rem 0;
+    }
+
+    .search-bar input {
+      width: 100%;
+      padding: 0.5rem 0.75rem;
+      background: #1a1a1a;
+      border: 1px solid #333;
+      border-radius: 6px;
+      color: #d4d4d4;
+      font-size: 0.9rem;
+      outline: none;
+    }
+
+    .search-bar input:focus {
+      border-color: #b4783c;
+    }
+
+    .filter-chips {
+      display: flex;
+      gap: 0.4rem;
+      overflow-x: auto;
+      padding: 0.6rem 1rem 0;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .filter-chips:empty {
+      padding: 0;
+    }
+
+    .filter-chip {
+      flex-shrink: 0;
+      padding: 0.3rem 0.7rem;
+      border-radius: 999px;
+      border: 1px solid #333;
+      background: #1a1a1a;
+      color: #999;
+      font-size: 0.78rem;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .filter-chip.active {
+      background: #d97757;
+      border-color: #d97757;
+      color: #fff;
+    }
+
+    .group-heading {
+      padding: 0.9rem 1rem 0.3rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: #b4783c;
+      letter-spacing: 0.02em;
+    }
+
+    .meta-inputs {
+      display: flex;
+      gap: 0.5rem;
+      padding: 0 1rem 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    .meta-inputs input {
+      flex: 1;
+      min-width: 120px;
+      padding: 0.45rem 0.6rem;
+      background: #1a1a1a;
+      border: 1px solid #333;
+      border-radius: 6px;
+      color: #d4d4d4;
+      font-size: 0.82rem;
+      outline: none;
+    }
+
+    .meta-inputs input:focus {
+      border-color: #b4783c;
+    }
+
     /* 複数選択モード */
     .memo-item .memo-check {
       display: none;
@@ -1009,6 +1105,11 @@
               </div>
             </div>
           </div>
+          <div class="search-bar">
+            <input type="search" id="searchInput" placeholder="🔍 検索（タイトル・本文・グループ・タグ）">
+          </div>
+          <div class="filter-chips" id="groupChips"></div>
+          <div class="filter-chips" id="tagChips"></div>
           <div class="content">
             <ul class="memo-list" id="memoList"></ul>
             <div class="empty-state" id="emptyState">
@@ -1032,6 +1133,12 @@
           </div>
           <div class="editor-container" id="editorContainer" style="display: none;">
             <input type="text" class="title-input" id="titleInput" placeholder="タイトル">
+            <div class="meta-inputs">
+              <input type="text" id="groupInput" list="groupOptions" placeholder="グループ（空欄可）">
+              <datalist id="groupOptions"></datalist>
+              <input type="text" id="tagsInput" list="tagOptions" placeholder="タグ（カンマ区切り）">
+              <datalist id="tagOptions"></datalist>
+            </div>
             <textarea class="content-input" id="contentInput" placeholder="Markdown で記述..."></textarea>
             <div class="attachments" id="attachments"></div>
             <div class="editor-meta" id="editorMeta"></div>
@@ -1390,6 +1497,8 @@
       md += `title: ${memo.title.replace(/\n/g, ' ')}\n`;
       md += `created: ${memo.createdAt}\n`;
       md += `updated: ${memo.updatedAt}\n`;
+      if (memo.group) md += `group: ${memo.group}\n`;
+      if (memo.tags && memo.tags.length) md += `tags: ${memo.tags.join(', ')}\n`;
       md += '---\n';
       md += memo.content;
       if (memo.images && memo.images.length > 0) {
@@ -1406,7 +1515,7 @@
     }
 
     function markdownToMemo(text, fileId, kind) {
-      const memo = { id: fileId, title: '無題', content: '', createdAt: Date.now(), updatedAt: Date.now(), images: [], kind: kind || 'memo' };
+      const memo = { id: fileId, title: '無題', content: '', createdAt: Date.now(), updatedAt: Date.now(), images: [], group: '', tags: [], kind: kind || 'memo' };
       let body = text;
       const fmMatch = text.match(/^---\n([\s\S]*?)\n---\n?/);
       if (fmMatch) {
@@ -1419,6 +1528,8 @@
           if (key === 'title') memo.title = val || '無題';
           if (key === 'created') memo.createdAt = parseInt(val) || memo.createdAt;
           if (key === 'updated') memo.updatedAt = parseInt(val) || memo.updatedAt;
+          if (key === 'group') memo.group = val;
+          if (key === 'tags') memo.tags = val.split(',').map(t => t.trim()).filter(Boolean);
         });
       }
       const markerIdx = body.indexOf(ATTACH_MARKER);
@@ -1630,6 +1741,13 @@
     let currentTab = 'memo'; // 'memo' | 'draw' | 'pdf' | 'both'
 
     function switchTab(tab) {
+      if (tab !== currentTab) {
+        searchQuery = '';
+        filterGroup = '';
+        filterTag = '';
+        const searchEl = $('searchInput');
+        if (searchEl) searchEl.value = '';
+      }
       currentTab = tab;
       document.querySelectorAll('.tab-btn').forEach(b => {
         b.classList.toggle('active', b.dataset.tab === tab);
@@ -2591,6 +2709,68 @@
       updateSelectionHeader();
     });
 
+    // ===== 検索・グループ/タグ絞り込み =====
+    let searchQuery = '';
+    let filterGroup = '';
+    let filterTag = '';
+
+    function matchesFilters(memo) {
+      if (filterGroup && (memo.group || '') !== filterGroup) return false;
+      if (filterTag && !(memo.tags || []).includes(filterTag)) return false;
+      if (searchQuery) {
+        const q = searchQuery.toLowerCase();
+        const hay = [memo.title, memo.content, memo.group || '', ...(memo.tags || [])].join(' ').toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      return true;
+    }
+
+    // 空グループ（未分類）は「その他」として最後にまとめる
+    function groupMemos(memos) {
+      const groups = new Map();
+      memos.forEach((memo) => {
+        const key = (memo.group || '').trim();
+        if (!groups.has(key)) groups.set(key, []);
+        groups.get(key).push(memo);
+      });
+      const entries = [...groups.entries()];
+      entries.sort((a, b) => {
+        if (a[0] === '' && b[0] !== '') return 1;
+        if (a[0] !== '' && b[0] === '') return -1;
+        return 0;
+      });
+      return entries;
+    }
+
+    function renderFilterChips(memos) {
+      const groupChips = $('groupChips');
+      const tagChips = $('tagChips');
+      const groups = [...new Set(memos.map(m => (m.group || '').trim()).filter(Boolean))];
+      const tags = [...new Set(memos.flatMap(m => m.tags || []))];
+
+      groupChips.innerHTML = groups.length ? [
+        `<button class="filter-chip${filterGroup === '' ? ' active' : ''}" data-group="">すべて</button>`,
+        ...groups.map(g => `<button class="filter-chip${filterGroup === g ? ' active' : ''}" data-group="${escapeHtml(g)}">${escapeHtml(g)}</button>`)
+      ].join('') : '';
+      groupChips.querySelectorAll('.filter-chip').forEach(chip => {
+        chip.addEventListener('click', () => {
+          filterGroup = chip.dataset.group;
+          renderList();
+        });
+      });
+
+      tagChips.innerHTML = tags.length ? [
+        `<button class="filter-chip${filterTag === '' ? ' active' : ''}" data-tag="">🏷 すべて</button>`,
+        ...tags.map(t => `<button class="filter-chip${filterTag === t ? ' active' : ''}" data-tag="${escapeHtml(t)}">#${escapeHtml(t)}</button>`)
+      ].join('') : '';
+      tagChips.querySelectorAll('.filter-chip').forEach(chip => {
+        chip.addEventListener('click', () => {
+          filterTag = chip.dataset.tag;
+          renderList();
+        });
+      });
+    }
+
     async function renderList() {
       let memos;
       try {
@@ -2602,26 +2782,36 @@
       }
       const list = $('memoList');
       const emptyState = $('emptyState');
-      $('memoCount').textContent = `${memos.length} 件`;
 
-      if (memos.length === 0) {
+      renderFilterChips(memos);
+      const filtered = memos.filter(matchesFilters);
+      $('memoCount').textContent = `${filtered.length} 件`;
+
+      if (filtered.length === 0) {
         list.innerHTML = '';
         emptyState.style.display = 'flex';
+        emptyState.querySelector('p').textContent = memos.length === 0 ? 'メモはまだありません' : '該当するメモがありません';
         if (selectionMode) exitSelectionMode();
         return;
       }
 
       emptyState.style.display = 'none';
-      list.innerHTML = memos.map(memo => `
-        <li class="memo-item${selectedIds.has(memo.id) ? ' selected' : ''}" data-id="${memo.id}">
-          <span class="memo-check">✓</span>
-          <div class="memo-body">
-            <div class="memo-title">${memo.images && memo.images.length ? '<span class="memo-badge">🖼️' + memo.images.length + '</span>' : ''}${escapeHtml(memo.title)}</div>
-            <div class="memo-preview">${escapeHtml(getPreview(memo.content)) || '（空）'}</div>
-            <div class="memo-date">${formatDate(memo.updatedAt)}</div>
-          </div>
-        </li>
-      `).join('');
+      const grouped = groupMemos(filtered);
+      list.innerHTML = grouped.map(([groupName, groupItems]) => {
+        const title = groupName ? groupName : (grouped.length > 1 ? 'その他' : '');
+        const items = groupItems.map(memo => `
+          <li class="memo-item${selectedIds.has(memo.id) ? ' selected' : ''}" data-id="${memo.id}">
+            <span class="memo-check">✓</span>
+            <div class="memo-body">
+              <div class="memo-title">${memo.images && memo.images.length ? '<span class="memo-badge">🖼️' + memo.images.length + '</span>' : ''}${escapeHtml(memo.title)}</div>
+              ${memo.tags && memo.tags.length ? `<div class="memo-tags">${memo.tags.map(t => `<span class="memo-tag">#${escapeHtml(t)}</span>`).join('')}</div>` : ''}
+              <div class="memo-preview">${escapeHtml(getPreview(memo.content)) || '（空）'}</div>
+              <div class="memo-date">${formatDate(memo.updatedAt)}</div>
+            </div>
+          </li>
+        `).join('');
+        return `${title ? `<div class="group-heading">${escapeHtml(title)}</div>` : ''}${items}`;
+      }).join('');
       list.classList.toggle('selecting', selectionMode);
 
       list.querySelectorAll('.memo-item').forEach(item => {
@@ -2693,6 +2883,15 @@
       renderAttachments();
     }
 
+    async function populateMetaOptions() {
+      let memos = [];
+      try { memos = await storage.getAll(currentTab); } catch (e) { /* 候補が出せなくても編集は続行 */ }
+      const groups = [...new Set(memos.map(m => (m.group || '').trim()).filter(Boolean))];
+      const tags = [...new Set(memos.flatMap(m => m.tags || []))];
+      $('groupOptions').innerHTML = groups.map(g => `<option value="${escapeHtml(g)}">`).join('');
+      $('tagOptions').innerHTML = tags.map(t => `<option value="${escapeHtml(t)}">`).join('');
+    }
+
     function createNewMemo() {
       // 選択モード中に新規作成した場合はモードを解除してから開く
       if (selectionMode) exitSelectionMode();
@@ -2707,10 +2906,15 @@
         createdAt: Date.now(),
         updatedAt: Date.now(),
         images: [],
+        group: '',
+        tags: [],
         kind: currentTab === 'both' ? 'both' : 'memo',
       };
       $('titleInput').value = currentMemo.title;
       $('contentInput').value = '';
+      $('groupInput').value = '';
+      $('tagsInput').value = '';
+      populateMetaOptions();
       updateEditorMeta();
       showEditorView();
     }
@@ -2722,6 +2926,9 @@
       currentMemo = memo;
       $('titleInput').value = memo.title;
       $('contentInput').value = memo.content;
+      $('groupInput').value = memo.group || '';
+      $('tagsInput').value = (memo.tags || []).join(', ');
+      populateMetaOptions();
       updateEditorMeta();
       showEditorView();
     }
@@ -2744,6 +2951,8 @@
       if (!currentMemo) return;
       currentMemo.title = $('titleInput').value || '新規メモ';
       currentMemo.content = $('contentInput').value;
+      currentMemo.group = $('groupInput').value.trim();
+      currentMemo.tags = $('tagsInput').value.split(',').map(t => t.trim()).filter(Boolean);
       currentMemo.updatedAt = Date.now();
       try {
         await storage.save(currentMemo);
@@ -2803,6 +3012,11 @@
       const createdDate = new Date(currentMemo.createdAt).toLocaleString('ja-JP');
       $('editorMeta').textContent = `作成: ${createdDate}`;
     }
+
+    $('searchInput').addEventListener('input', (e) => {
+      searchQuery = e.target.value.trim();
+      renderList();
+    });
 
     $('fabBtn').addEventListener('click', createNewMemo);
     $('saveBtn').addEventListener('click', saveCurrentMemo);
