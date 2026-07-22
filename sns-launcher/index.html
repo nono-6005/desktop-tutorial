@@ -57,6 +57,19 @@
             gap: 12px;
             margin-bottom: 20px;
         }
+
+        .group-section {
+            margin-bottom: 20px;
+        }
+
+        .group-title {
+            color: white;
+            font-size: 13px;
+            font-weight: 600;
+            opacity: 0.85;
+            margin-bottom: 10px;
+            padding-left: 2px;
+        }
         
         .account-btn {
             background: white;
@@ -373,8 +386,8 @@
             <p>ワンクリックでSNSを開く</p>
         </div>
         
-        <div class="accounts-grid" id="accountsGrid"></div>
-        
+        <div id="accountsContainer"></div>
+
         <div class="button-group">
             <button class="btn btn-edit" onclick="openEditModal()">⚙️ 編集</button>
             <button class="btn btn-add" onclick="openAddModal()">+ 追加</button>
@@ -415,7 +428,13 @@
                 <label>説明</label>
                 <textarea id="descriptionInput" placeholder="例: SNS戦略用、プライベート用など" style="resize: vertical; height: 60px;"></textarea>
             </div>
-            
+
+            <div class="form-group">
+                <label>グループ</label>
+                <input type="text" id="groupInput" list="groupOptions" placeholder="例: 仕事用、プライベート用など（空欄可）">
+                <datalist id="groupOptions"></datalist>
+            </div>
+
             <div class="form-actions">
                 <button class="btn-secondary" onclick="closeAddModal()">キャンセル</button>
                 <button class="btn-primary" onclick="addAccount()">追加</button>
@@ -487,10 +506,27 @@
         function loadAccounts() {
             const saved = localStorage.getItem('snsAccounts');
             return saved ? JSON.parse(saved) : [
-                { id: 1, platform: 'threads', url: 'https://www.threads.net/@doragon', displayName: 'Threads', description: '' },
-                { id: 2, platform: 'x', url: 'https://x.com/doragon', displayName: 'X', description: '' },
-                { id: 3, platform: 'substack', url: 'https://substack.com/@doragon', displayName: 'Substack', description: '' }
+                { id: 1, platform: 'threads', url: 'https://www.threads.net/@doragon', displayName: 'Threads', description: '', group: '' },
+                { id: 2, platform: 'x', url: 'https://x.com/doragon', displayName: 'X', description: '', group: '' },
+                { id: 3, platform: 'substack', url: 'https://substack.com/@doragon', displayName: 'Substack', description: '', group: '' }
             ];
+        }
+
+        function groupAccounts(accounts) {
+            const groups = new Map();
+            accounts.forEach((acc) => {
+                const key = (acc.group || '').trim();
+                if (!groups.has(key)) groups.set(key, []);
+                groups.get(key).push(acc);
+            });
+            // 無所属（空グループ）を最後に、それ以外は登場順
+            const entries = [...groups.entries()];
+            entries.sort((a, b) => {
+                if (a[0] === '' && b[0] !== '') return 1;
+                if (a[0] !== '' && b[0] === '') return -1;
+                return 0;
+            });
+            return entries;
         }
 
         function saveAccounts(accounts) {
@@ -512,22 +548,32 @@
 
         function renderAccounts() {
             const accounts = loadAccounts();
-            const grid = document.getElementById('accountsGrid');
-            
+            const container = document.getElementById('accountsContainer');
+
             if (accounts.length === 0) {
-                grid.innerHTML = '<div class="empty-state" style="grid-column: 1/-1;">アカウントを追加してください</div>';
+                container.innerHTML = '<div class="empty-state">アカウントを追加してください</div>';
                 return;
             }
-            
-            grid.innerHTML = accounts.map(acc => {
-                const platform = PLATFORMS[acc.platform];
-                const tooltip = acc.description ? `${acc.displayName}: ${acc.description}` : acc.displayName;
+
+            const grouped = groupAccounts(accounts);
+            container.innerHTML = grouped.map(([groupName, accs]) => {
+                const grid = accs.map(acc => {
+                    const platform = PLATFORMS[acc.platform];
+                    const tooltip = acc.description ? `${acc.displayName}: ${acc.description}` : acc.displayName;
+                    return `
+                        <button class="account-btn" onclick="openAccount('${acc.url.replace(/'/g, "\\'")}')" title="${tooltip.replace(/"/g, '&quot;')}">
+                            <div class="icon">${platform.icon}</div>
+                            <div>${acc.displayName}</div>
+                            ${acc.description ? `<div class="account-btn-desc">${acc.description}</div>` : ''}
+                        </button>
+                    `;
+                }).join('');
+                const title = groupName ? groupName : (grouped.length > 1 ? 'その他' : '');
                 return `
-                    <button class="account-btn" onclick="openAccount('${acc.url.replace(/'/g, "\\'")}')" title="${tooltip.replace(/"/g, '&quot;')}">
-                        <div class="icon">${platform.icon}</div>
-                        <div>${acc.displayName}</div>
-                        ${acc.description ? `<div class="account-btn-desc">${acc.description}</div>` : ''}
-                    </button>
+                    <div class="group-section">
+                        ${title ? `<div class="group-title">${title}</div>` : ''}
+                        <div class="accounts-grid">${grid}</div>
+                    </div>
                 `;
             }).join('');
         }
@@ -546,6 +592,11 @@
             document.getElementById('usernameInput').value = '';
             document.getElementById('displayNameInput').value = '';
             document.getElementById('descriptionInput').value = '';
+            document.getElementById('groupInput').value = '';
+
+            const groupOptions = document.getElementById('groupOptions');
+            const groups = [...new Set(loadAccounts().map(a => (a.group || '').trim()).filter(Boolean))];
+            groupOptions.innerHTML = groups.map(g => `<option value="${g.replace(/"/g, '&quot;')}">`).join('');
         }
 
         function closeAddModal() {
@@ -564,24 +615,29 @@
         function renderAccountsList() {
             const accounts = loadAccounts();
             const list = document.getElementById('accountsList');
-            
+
             if (accounts.length === 0) {
                 list.innerHTML = '<div class="empty-state">アカウントがありません</div>';
                 return;
             }
-            
-            list.innerHTML = accounts.map(acc => {
-                const platform = PLATFORMS[acc.platform];
-                return `
-                    <div class="account-item">
-                        <div class="account-item-info">
-                            <div class="account-item-platform">${platform.name} - ${acc.displayName}</div>
-                            <div class="account-item-url">${acc.url}</div>
-                            ${acc.description ? `<div class="account-item-desc">📝 ${acc.description}</div>` : ''}
+
+            const grouped = groupAccounts(accounts);
+            list.innerHTML = grouped.map(([groupName, accs]) => {
+                const items = accs.map(acc => {
+                    const platform = PLATFORMS[acc.platform];
+                    return `
+                        <div class="account-item">
+                            <div class="account-item-info">
+                                <div class="account-item-platform">${platform.name} - ${acc.displayName}</div>
+                                <div class="account-item-url">${acc.url}</div>
+                                ${acc.description ? `<div class="account-item-desc">📝 ${acc.description}</div>` : ''}
+                            </div>
+                            <button class="btn-delete" onclick="deleteAccount(${acc.id})">削除</button>
                         </div>
-                        <button class="btn-delete" onclick="deleteAccount(${acc.id})">削除</button>
-                    </div>
-                `;
+                    `;
+                }).join('');
+                const title = groupName ? groupName : (grouped.length > 1 ? 'その他' : '');
+                return `${title ? `<div class="group-title" style="color:#666;">${title}</div>` : ''}${items}`;
             }).join('');
         }
 
@@ -590,6 +646,7 @@
             let input = document.getElementById('usernameInput').value.trim();
             const displayName = document.getElementById('displayNameInput').value.trim() || PLATFORMS[platform].name;
             const description = document.getElementById('descriptionInput').value.trim();
+            const group = document.getElementById('groupInput').value.trim();
 
             if (!platform || !input) {
                 alert('プラットフォームとURLを入力してください');
@@ -609,7 +666,8 @@
                 platform,
                 url: urlToSave,
                 displayName,
-                description
+                description,
+                group
             };
 
             accounts.push(newAccount);
