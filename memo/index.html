@@ -378,36 +378,6 @@
       justify-content: center;
     }
 
-    .guide-modal ol {
-      list-style: none;
-      counter-reset: step;
-      margin-bottom: 1.25rem;
-    }
-
-    .guide-modal li {
-      counter-increment: step;
-      display: flex;
-      gap: 0.75rem;
-      padding: 0.6rem 0;
-      font-size: 0.95rem;
-      color: #d4d4d4;
-      line-height: 1.4;
-    }
-
-    .guide-modal li::before {
-      content: counter(step);
-      flex-shrink: 0;
-      width: 1.6rem;
-      height: 1.6rem;
-      border-radius: 50%;
-      background: linear-gradient(135deg, #d97757 0%, #b4783c 100%);
-      color: white;
-      font-size: 0.8rem;
-      font-weight: 600;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
 
     /* ===== メモリスト・エディタ ===== */
     .header-edit {
@@ -1090,7 +1060,6 @@
               </div>
               <div style="display: flex; gap: 0.4rem; align-items: center;">
                 <button id="selectModeBtn" class="install-btn" style="background: #2a2a2a; border: 1px solid #444;">☑ 選択</button>
-                <button id="installBtn" class="install-btn">🔖 ブックマーク</button>
               </div>
             </div>
             <div class="header-list" id="listHeaderSelect" style="display: none;">
@@ -1290,14 +1259,6 @@
       </div>
     </div>
 
-    <!-- ブックマーク追加ガイド -->
-    <div class="overlay" id="guideOverlay">
-      <div class="modal guide-modal">
-        <h2>ブックマークに追加</h2>
-        <ol id="guideSteps"></ol>
-        <button class="modal-btn" id="guideClose">閉じる</button>
-      </div>
-    </div>
   </div>
 
   <script>
@@ -1323,9 +1284,6 @@
 
     const $ = (id) => document.getElementById(id);
 
-    const ua = navigator.userAgent.toLowerCase();
-    const isIOS = /iphone|ipad|ipod/.test(ua);
-    const isAndroid = /android/.test(ua);
     // ===== Service Worker =====
     if ('serviceWorker' in navigator) {
       // 既に別のワーカーに制御されているページでのみ「更新」を通知する。
@@ -1710,7 +1668,7 @@
     });
 
     // ===== 設定モーダル =====
-    const APP_VERSION = 'v44';
+    const APP_VERSION = 'v45';
     $('settingsBtn').addEventListener('click', async () => {
       $('settingsStorage').textContent = storage.label();
       $('settingsVersion').textContent = APP_VERSION;
@@ -3087,35 +3045,6 @@
       }
       ta.value = ta.value.slice(0, start) + '\t' + ta.value.slice(end);
       ta.selectionStart = ta.selectionEnd = start + 1;
-    });
-
-    // ===== ブックマーク案内 =====
-    $('installBtn').addEventListener('click', () => {
-      let steps;
-      if (isIOS) {
-        steps = [
-          '画面下（または上部）の「共有」アイコン（□に↑）をタップ',
-          '「ブックマークを追加」をタップ',
-          '「保存」をタップして完了',
-        ];
-      } else if (isAndroid) {
-        steps = [
-          'アドレスバー右側の ☆（星マーク）をタップ',
-          '見当たらない場合はブラウザメニュー「⋮」→「ブックマーク」→「追加」',
-          '保存先を確認して「保存」をタップ',
-        ];
-      } else {
-        steps = [
-          'キーボードの Ctrl + D（Mac は Cmd + D）を押す',
-          '保存先フォルダを確認して「完了」をクリック',
-        ];
-      }
-      $('guideSteps').innerHTML = steps.map(s => `<li>${s}</li>`).join('');
-      $('guideOverlay').classList.add('show');
-    });
-    $('guideClose').addEventListener('click', () => $('guideOverlay').classList.remove('show'));
-    $('guideOverlay').addEventListener('click', (e) => {
-      if (e.target === $('guideOverlay')) $('guideOverlay').classList.remove('show');
     });
 
     function restoreDraftIfAny() {
