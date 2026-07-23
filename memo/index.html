@@ -990,13 +990,20 @@
 
     /* ===== タブレット・デスクトップ（768px〜） ===== */
     @media (min-width: 768px) {
-      /* 2ペイン（一覧＋エディタ）が収まる幅まで広げつつ中央寄せを維持 */
+      /* 画面幅いっぱいに表示する（中央に寄せた箱型レイアウトをやめる） */
       :root {
-        --app-max-width: 960px;
+        --app-max-width: none;
       }
 
       .memo-layout {
         flex-direction: row;
+      }
+
+      /* 全画面表示になった分、右下FABは画面端からの固定オフセットに戻す
+         （中央寄せ幅を前提にしたcalc(min(100vw, var(--app-max-width)))は
+          --app-max-widthがnoneのときmin()の引数として無効になるため使えない） */
+      .fab {
+        right: 1.5rem;
       }
 
       .memo-layout .list-view {
@@ -1668,7 +1675,7 @@
     });
 
     // ===== 設定モーダル =====
-    const APP_VERSION = 'v45';
+    const APP_VERSION = 'v46';
     $('settingsBtn').addEventListener('click', async () => {
       $('settingsStorage').textContent = storage.label();
       $('settingsVersion').textContent = APP_VERSION;
