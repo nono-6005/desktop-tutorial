@@ -311,7 +311,7 @@ export default function PodcastApp() {
     <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 p-6">
       <div className="max-w-4xl mx-auto">
         {/* ヘッダー */}
-        <div className="flex justify-between items-center mb-8">
+        <div className="flex justify-between items-center mb-2">
           <h1 className="text-4xl font-bold text-white">🎙️ Podcast Studio</h1>
           <button
             onClick={() => setShowSettings(!showSettings)}
@@ -320,6 +320,9 @@ export default function PodcastApp() {
             <Settings size={24} />
           </button>
         </div>
+        <p className="text-indigo-300 text-sm mb-6">
+          <a href="./manual.html" className="underline hover:text-white">📖 取扱説明書</a>
+        </p>
 
         {/* 設定パネル */}
         {showSettings && (

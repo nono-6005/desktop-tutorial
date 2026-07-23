@@ -61,9 +61,16 @@ Generated from `templates/podcast-studio/` (placeholders `{{APP_NAME}}`,
    AI processing, WAV export).
 4. **`{app-dir}-app/src/main.jsx`, `src/index.css`** — React bootstrap + Tailwind
    directives; `main.jsx` also registers the Service Worker.
-5. **`{app-dir}-app/public/manifest.json`, `public/sw.js`, `public/icons/icon.svg`** —
-   PWA manifest, Service Worker, and icon (copied into the build output by Vite
-   automatically since they live under `public/`).
+5. **`{app-dir}-app/public/manifest.json`, `public/sw.js`, `public/manual.html`,
+   `public/icons/icon.svg` + `icon-192.png`/`icon-512.png`/`icon-192-maskable.png`/
+   `icon-512-maskable.png`** — PWA manifest, Service Worker, in-app help page, and icons
+   (copied into the build output by Vite automatically since they live under
+   `public/`). The manifest lists **both** the PNGs and the SVG; the PNGs are what
+   satisfy Chrome/Android's installability check (an SVG-only icon set is not
+   consistently enough for the native "Install" prompt to appear — this bit real users
+   in earlier iterations of this skill). `manual.html` carries the "ホーム画面に追加
+   （アプリ化）" install instructions as a fallback, linked from the app header, mirroring
+   `/memo-pwa` and the existing `sns-launcher` app in this repo.
 6. **`{app-dir}-app/README.md`** — setup/usage instructions.
 
 ## Build steps (must run after generating files)
@@ -123,3 +130,10 @@ git push
 - MP3 export is not implemented; only WAV.
 - Every rebuild (`npm run build`) empties and regenerates `{app-dir}/` — never
   hand-edit files there, only in `{app-dir}-app/`.
+- The template's PNG icons are pre-rendered with the **default** `--theme-color`
+  (`#4c1d95`) baked into the pixels. Passing a different `--theme-color` re-tints the
+  SVG icon, manifest colors, and page meta tags, but **not** the PNGs — they'll still
+  show the default purple background. If exact color matching matters, re-render
+  `icon-192.png`/`icon-512.png`/`icon-192-maskable.png`/`icon-512-maskable.png` from the
+  substituted `icon.svg` (e.g. headless-Chromium screenshot of an `<img>` sized to the
+  target dimensions, or any SVG-to-PNG tool) before shipping.
