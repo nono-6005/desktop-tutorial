@@ -1,0 +1,70 @@
+# {{APP_NAME}}
+
+{{APP_DESCRIPTION}}
+
+## Features
+
+- Multi-track microphone recording (Web Audio API)
+- Per-track volume mixing and playback
+- WAV export of the mixed result
+- Optional AI-assisted title/description generation via the Claude API (experimental —
+  see "Known limitations" below)
+- Fully offline capable (Service Worker)
+- PWA (add to home screen)
+
+## Installation
+
+This app runs entirely in your browser. No server needed once built.
+
+### On Desktop / Mobile
+Open this repository with GitHub Pages enabled:
+`https://{{REPO_OWNER}}.github.io/{{REPO_NAME}}/{{APP_DIR}}/`
+
+- **Android Chrome**: Tap address bar → "Install" (or menu → "Install app")
+- **iOS Safari**: Share button → "Add to Home Screen"
+
+## How to Use
+
+1. Gear icon (top right) → enter a Claude API key (only needed for AI processing)
+2. "録音開始" (Start recording) → grant mic permission → record
+3. Record multiple times to add tracks; adjust each track's volume
+4. "再生" (Play) to preview the mixed result
+5. "AI処理" (AI process) → optional title/description suggestions
+6. "ダウンロード" (Download) → get a mixed WAV file
+
+## Known limitations
+
+- The AI-processing feature calls `api.anthropic.com` directly from the browser with a
+  user-supplied API key stored in `localStorage`. This is likely to hit CORS
+  restrictions in real deployments, and Claude does not natively transcribe or
+  understand raw audio — treat this feature as experimental, not a reliable
+  transcription pipeline.
+- MP3 export is not implemented; only WAV.
+
+## For Developers
+
+Source lives in `{{APP_DIR}}-app/` (React + Vite + Tailwind), **not** deployed
+directly. To make changes:
+
+```bash
+cd {{APP_DIR}}-app
+npm install
+npm run dev      # http://localhost:5173
+
+# When ready to deploy:
+npm run build    # builds straight into ../{{APP_DIR}}/
+cd ..
+git add {{APP_DIR}}-app {{APP_DIR}}
+git commit -m "build: update {{APP_DIR}}"
+git push
+```
+
+`npm run build` overwrites `{{APP_DIR}}/` entirely (`emptyOutDir: true`) — never hand-edit
+files there.
+
+## Technical Details
+
+- **Framework**: React 18 + Vite + Tailwind CSS
+- **Storage**: localStorage (API key only; recordings are in-memory per session)
+- **Offline**: Service Worker caches the app shell; JS/CSS bundles cache on first load
+- **Privacy**: Recordings never leave the device unless you use the AI-processing feature

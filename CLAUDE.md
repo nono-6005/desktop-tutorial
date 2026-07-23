@@ -26,6 +26,28 @@ A PWA app for opening multiple SNS accounts with one click:
 
 **Live:** https://nono-6005.github.io/desktop-tutorial/sns-launcher/
 
+### podcast-studio (Podcast Studio)
+
+A PWA app for recording and mixing a podcast episode:
+- Multi-track microphone recording (Web Audio API)
+- Per-track volume mixing and playback
+- WAV export of the mixed result
+- AI-assisted title/description generation via the Claude API (client stores its own
+  API key in localStorage and calls it directly from the browser — experimental; may
+  hit CORS restrictions since Anthropic's API isn't meant to be called from a browser,
+  and Claude does not natively transcribe/understand raw audio)
+- Offline support via Service Worker
+- PWA installation on mobile/desktop
+
+**Live:** https://nono-6005.github.io/desktop-tutorial/podcast-studio/
+
+Unlike the other two apps, this one is built with React + Vite + Tailwind. Source lives
+in `podcast-studio-app/` (not deployed); running `npm install && npm run build` there
+builds straight into the sibling `podcast-studio/` directory, which is what's actually
+served (plain static files, no build step needed at deploy time — consistent with how
+GitHub Pages is configured for this repo). Edit `podcast-studio-app/src/App.jsx` and
+rebuild; don't hand-edit files under `podcast-studio/assets/`.
+
 ## Available Skills
 
 ### /memo-pwa
@@ -37,6 +59,20 @@ Create and deploy a PWA memo app to any GitHub repository.
 ```
 
 See `.claude/skills/memo-pwa.md` for details.
+
+### /podcast-studio
+
+Create and deploy a Podcast Studio PWA app (multi-track recording/mixing, WAV export,
+optional AI-assisted title/description generation) to any GitHub repository. Unlike
+`/memo-pwa`, this generates a React + Vite + Tailwind project (source in
+`{app-dir}-app/`) that must be built (`npm install && npm run build`) into a sibling
+`{app-dir}/` directory before it can be served.
+
+```
+/podcast-studio --app-name "Podcast Studio" --theme-color "#4c1d95"
+```
+
+See `.claude/skills/podcast-studio.md` for details.
 
 ## Development
 
@@ -52,6 +88,8 @@ See `.claude/skills/memo-pwa.md` for details.
 - `sns-launcher/index.html` - SNS Launcher app
 - `sns-launcher/manifest.json` - SNS Launcher PWA configuration (scope: `/sns-launcher/`)
 - `sns-launcher/sw.js` - SNS Launcher Service Worker
+- `podcast-studio-app/` - Podcast Studio source (React/Vite project, not deployed directly)
+- `podcast-studio/` - Podcast Studio built output (served; scope: `/podcast-studio/`)
 - `README.md` - User-facing docs
 
 ## PWA scope isolation
@@ -66,8 +104,8 @@ app. Do not add a new app directly at the repo root — always give it its own f
 
 ## Technical Stack
 
-- **Frontend:** Vanilla JavaScript, HTML5, CSS3
-- **Storage:** IndexedDB (browser local storage)
+- **Frontend:** Vanilla JavaScript, HTML5, CSS3 (memo, sns-launcher); React + Vite + Tailwind (podcast-studio, built to static output — see above)
+- **Storage:** IndexedDB / localStorage (browser local storage)
 - **Deployment:** GitHub Pages
 - **PWA:** manifest.json + Service Worker
 
@@ -97,8 +135,9 @@ verification) before merging.
 After merging, poll the GitHub Actions "pages build and deployment" run for the merge
 commit until it completes, then report the resulting live URL(s) to the user
 automatically (no need to wait for them to ask "URL発行") — e.g.
-`https://nono-6005.github.io/desktop-tutorial/memo/` and
-`https://nono-6005.github.io/desktop-tutorial/sns-launcher/`, adjusted to whatever
+`https://nono-6005.github.io/desktop-tutorial/memo/`,
+`https://nono-6005.github.io/desktop-tutorial/sns-launcher/`, and
+`https://nono-6005.github.io/desktop-tutorial/podcast-studio/`, adjusted to whatever
 paths the merged change actually affects.
 
 ## Notes
