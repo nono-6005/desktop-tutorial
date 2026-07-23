@@ -626,6 +626,14 @@
       color: #666;
     }
 
+    /* モバイル既定は縦積み（一覧→エディタ）。768px以上でのみ2ペイン横並びにする
+       （下の @media (min-width: 768px) 内で flex-direction: row に上書き）。
+       このルールが無いと、狭い画面でも flex のデフォルト値である row が
+       効いてしまい、一覧が内容幅ぶんしか横に伸びず右側が余白になる。 */
+    .memo-layout {
+      flex-direction: column;
+    }
+
     .list-view {
       display: flex;
       flex-direction: column;
@@ -988,8 +996,11 @@
       }
     }
 
-    /* ===== タブレット・デスクトップ（768px〜） ===== */
-    @media (min-width: 768px) {
+    /* ===== タブレット・デスクトップ（768px〜） =====
+       pointer:fine（マウス等の高精度ポインタ）も条件に加えることで、
+       CSS上の実効幅がたまたま768px以上になるスマートフォン（大画面機種・
+       表示設定によっては起こりうる）が誤って2ペイン表示になるのを防ぐ。 */
+    @media (min-width: 768px) and (pointer: fine) {
       /* 画面幅いっぱいに表示する（中央に寄せた箱型レイアウトをやめる） */
       :root {
         --app-max-width: none;
@@ -1036,7 +1047,7 @@
       }
     }
 
-    @media (min-width: 1024px) {
+    @media (min-width: 1024px) and (pointer: fine) {
       .memo-layout .list-view {
         width: 400px;
       }
@@ -1675,7 +1686,7 @@
     });
 
     // ===== 設定モーダル =====
-    const APP_VERSION = 'v46';
+    const APP_VERSION = 'v47';
     $('settingsBtn').addEventListener('click', async () => {
       $('settingsStorage').textContent = storage.label();
       $('settingsVersion').textContent = APP_VERSION;
