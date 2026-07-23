@@ -28,25 +28,23 @@ A PWA app for opening multiple SNS accounts with one click:
 
 ### podcast-studio (Podcast Studio)
 
-A PWA app for recording and mixing a podcast episode:
-- Multi-track microphone recording (Web Audio API)
-- Per-track volume mixing and playback
-- WAV export of the mixed result
-- AI-assisted title/description generation via the Claude API (client stores its own
-  API key in localStorage and calls it directly from the browser — experimental; may
-  hit CORS restrictions since Anthropic's API isn't meant to be called from a browser,
-  and Claude does not natively transcribe/understand raw audio)
+A PWA app for recording and editing podcasts, fully local (no server, no data sent):
+- Multi-track microphone recording (Web Audio API; each recording becomes a track)
+- Per-track volume, single-track preview, delete
+- Simultaneous mixdown playback (OfflineAudioContext)
+- Metadata (title / description / cover image)
+- WAV export of the mixed audio + text export of metadata
 - Offline support via Service Worker
 - PWA installation on mobile/desktop
 
 **Live:** https://nono-6005.github.io/desktop-tutorial/podcast-studio/
 
-Unlike the other two apps, this one is built with React + Vite + Tailwind. Source lives
-in `podcast-studio-app/` (not deployed); running `npm install && npm run build` there
-builds straight into the sibling `podcast-studio/` directory, which is what's actually
-served (plain static files, no build step needed at deploy time — consistent with how
-GitHub Pages is configured for this repo). Edit `podcast-studio-app/src/App.jsx` and
-rebuild; don't hand-edit files under `podcast-studio/assets/`.
+Like memo and sns-launcher, this is a build-free single `index.html` (vanilla JS, no
+framework). It was originally distributed as a React + Claude-API version, but the
+AI title/description feature was **deliberately dropped**: on GitHub Pages (public,
+no backend) an API key can't be kept secret and would let anyone run up charges on the
+account. This app therefore makes **no external network requests at all** — everything
+stays on-device. Do not reintroduce client-side API-key calls here.
 
 ## Available Skills
 
@@ -88,8 +86,9 @@ See `.claude/skills/podcast-studio.md` for details.
 - `sns-launcher/index.html` - SNS Launcher app
 - `sns-launcher/manifest.json` - SNS Launcher PWA configuration (scope: `/sns-launcher/`)
 - `sns-launcher/sw.js` - SNS Launcher Service Worker
-- `podcast-studio-app/` - Podcast Studio source (React/Vite project, not deployed directly)
-- `podcast-studio/` - Podcast Studio built output (served; scope: `/podcast-studio/`)
+- `podcast-studio/index.html` - Podcast Studio app (recording/editing via Web Audio API)
+- `podcast-studio/manifest.json` - Podcast Studio PWA configuration (scope: `/podcast-studio/`)
+- `podcast-studio/sw.js` - Podcast Studio Service Worker
 - `README.md` - User-facing docs
 
 ## PWA scope isolation
@@ -104,7 +103,7 @@ app. Do not add a new app directly at the repo root — always give it its own f
 
 ## Technical Stack
 
-- **Frontend:** Vanilla JavaScript, HTML5, CSS3 (memo, sns-launcher); React + Vite + Tailwind (podcast-studio, built to static output — see above)
+- **Frontend:** Vanilla JavaScript, HTML5, CSS3 (all three apps; build-free single-file)
 - **Storage:** IndexedDB / localStorage (browser local storage)
 - **Deployment:** GitHub Pages
 - **PWA:** manifest.json + Service Worker

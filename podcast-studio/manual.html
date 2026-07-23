@@ -3,122 +3,92 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <meta name="theme-color" content="#4c1d95">
+  <meta name="theme-color" content="#6d28d9">
   <title>取扱説明書 - Podcast Studio</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html, body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', sans-serif;
-      background: linear-gradient(180deg, #2e1a5e 0%, #1e2a68 50%, #2e1a5e 100%);
-      color: #e8e6f0;
+      background: linear-gradient(160deg, #2e1065 0%, #1e1b4b 50%, #172554 100%);
+      color: #e9e5ff;
       min-height: 100vh;
     }
-    .wrap {
-      max-width: 720px;
-      margin: 0 auto;
-      padding: 1.25rem 1rem 4rem;
-    }
-    .back {
-      display: inline-block;
-      color: #a9b6ff;
-      text-decoration: none;
-      font-size: 0.9rem;
-      margin-bottom: 1rem;
-    }
-    h1 {
-      color: #ffffff;
-      font-size: 1.4rem;
-      font-weight: 500;
-      margin-bottom: 0.4rem;
-    }
-    .sub { color: #b8b3d6; font-size: 0.85rem; margin-bottom: 1.5rem; }
+    .wrap { max-width: 720px; margin: 0 auto; padding: 1.25rem 1rem 4rem; }
+    .back { display: inline-block; color: #c4b5fd; text-decoration: none; font-size: 0.9rem; margin-bottom: 1rem; }
+    h1 { color: #fff; font-size: 1.4rem; font-weight: 600; margin-bottom: 0.4rem; }
+    .sub { color: #b8b0e8; font-size: 0.85rem; margin-bottom: 1.5rem; }
     h2 {
-      color: #ffffff;
-      font-size: 1.1rem;
-      font-weight: 500;
-      margin: 2rem 0 0.75rem;
-      padding-bottom: 0.4rem;
-      border-bottom: 1px solid rgba(150, 130, 220, 0.3);
-    }
-    h3 {
-      color: #cfc9ee;
-      font-size: 0.95rem;
-      font-weight: 500;
-      margin: 1.25rem 0 0.4rem;
+      color: #fff; font-size: 1.1rem; font-weight: 600;
+      margin: 2rem 0 0.75rem; padding-bottom: 0.4rem;
+      border-bottom: 1px solid rgba(150,130,220,0.3);
     }
     p, li { font-size: 0.9rem; line-height: 1.7; }
     ul, ol { padding-left: 1.4rem; margin: 0.4rem 0 0.8rem; }
     li { margin-bottom: 0.25rem; }
     .card {
-      background: rgba(255, 255, 255, 0.04);
-      border: 1px solid rgba(150, 130, 220, 0.2);
-      border-radius: 12px;
-      padding: 1rem;
-      margin: 0.75rem 0;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(150,130,220,0.2);
+      border-radius: 12px; padding: 1rem; margin: 0.75rem 0;
     }
     .btn-label {
-      display: inline-block;
-      background: rgba(255, 255, 255, 0.1);
-      border: 1px solid rgba(255, 255, 255, 0.25);
-      border-radius: 6px;
-      padding: 0.05rem 0.45rem;
-      font-size: 0.85rem;
-      color: #ffffff;
-      white-space: nowrap;
+      display: inline-block; background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.2); border-radius: 6px;
+      padding: 0.05rem 0.45rem; font-size: 0.85rem; color: #fff; white-space: nowrap;
     }
     .note {
-      background: rgba(102, 126, 234, 0.15);
-      border-left: 3px solid #667eea;
-      padding: 0.6rem 0.8rem;
-      border-radius: 0 8px 8px 0;
-      font-size: 0.85rem;
-      margin: 0.75rem 0;
+      background: rgba(124,58,237,0.15); border-left: 3px solid #7c3aed;
+      padding: 0.6rem 0.8rem; border-radius: 0 8px 8px 0; font-size: 0.85rem; margin: 0.75rem 0;
     }
-    .warn {
-      background: rgba(200, 60, 50, 0.15);
-      border-left: 3px solid #e74c3c;
-    }
+    .warn { background: rgba(200,60,50,0.15); border-left: 3px solid #e74c3c; }
   </style>
 </head>
 <body>
   <div class="wrap">
     <a class="back" href="./index.html">← アプリに戻る</a>
     <h1>📖 取扱説明書</h1>
-    <p class="sub">複数トラックの録音・ミックス＆AI処理ができるポッドキャスト編集アプリです。録音データはすべてこの端末の中に保存されます。</p>
+    <p class="sub">マイクで録音し、複数トラックを重ねてミックス再生・WAV書き出しができるアプリです。データはすべてこの端末の中で処理されます。</p>
 
-    <h2>🎙️ 録音</h2>
+    <h2>🎤 録音する</h2>
     <div class="card">
       <ul>
-        <li><span class="btn-label">録音開始</span> をタップしてマイクを許可すると録音が始まります</li>
-        <li><span class="btn-label">停止</span> で録音を終え、1つのトラックとして追加されます</li>
-        <li>何度も録音すれば、その分トラックが増えていきます</li>
+        <li><span class="btn-label">🎤 録音開始</span> をタップし、マイクの使用を「許可」してください</li>
+        <li>話し終わったら <span class="btn-label">停止</span> をタップ。1回の録音が1つの「トラック」として追加されます</li>
+        <li>もう一度録音すると、別トラックとして追加されます（何本でも重ねられます）</li>
       </ul>
     </div>
 
-    <h2>🎚️ トラック管理・再生</h2>
+    <h2>🎚️ トラックを編集する</h2>
     <div class="card">
       <ul>
-        <li>各トラックのスライダーで音量を個別に調整できます（0〜100%）</li>
-        <li>🗑️ ボタンで不要なトラックを削除できます</li>
-        <li><span class="btn-label">再生</span> で全トラックを同時にミックス再生し、仕上がりを確認できます</li>
+        <li><span class="btn-label">▶ 試聴</span>：そのトラックだけを再生して確認できます</li>
+        <li><b>音量</b>スライダー：トラックごとに音量（0〜100%）を調整できます</li>
+        <li><span class="btn-label">🗑</span>：不要なトラックを削除します</li>
       </ul>
     </div>
 
-    <h2>✨ AI処理・メタデータ</h2>
+    <h2>▶ ミックス再生</h2>
     <div class="card">
       <ul>
-        <li>⚙️ 設定からClaude APIキーを入力すると、タイトル・説明文の自動生成を試せます</li>
-        <li>タイトル・説明文・カバー画像は手動でも入力できます</li>
+        <li><span class="btn-label">▶ 全トラックをミックス再生</span> で、すべてのトラックを重ねて（同時に）再生します</li>
+        <li>各トラックは先頭からいっせいに鳴ります（BGMとナレーションを重ねるイメージ）</li>
       </ul>
-      <div class="note warn">AI処理はブラウザから直接Claude APIを呼び出す実験的な機能です。ネットワーク環境やAPI側の制限により失敗することがありますが、失敗してもアプリの他の機能には影響しません。</div>
     </div>
 
-    <h2>⬇️ ダウンロード</h2>
+    <h2>📝 番組情報</h2>
     <div class="card">
       <ul>
-        <li><span class="btn-label">ダウンロード（WAV）</span> で全トラックをミックスしたWAVファイルを保存できます</li>
-        <li>MP3形式の書き出しには対応していません</li>
+        <li>タイトル・説明・カバー画像を入力できます</li>
+        <li>ここで入力したタイトルは、書き出すファイルの名前にも使われます</li>
       </ul>
+    </div>
+
+    <h2>⬇ 書き出し</h2>
+    <div class="card">
+      <ul>
+        <li><span class="btn-label">⬇ WAVでダウンロード</span>：全トラックを1つにミックスした音声をWAV形式で保存します</li>
+        <li><span class="btn-label">📝 番組情報をテキスト保存</span>：タイトル・説明をテキストファイルで保存します</li>
+      </ul>
+      <div class="note">MP3ではなくWAV形式です（ブラウザだけで変換できる無劣化フォーマットのため）。ファイルサイズは大きめになります。</div>
     </div>
 
     <h2>📱 ホーム画面に追加（アプリ化）</h2>
@@ -126,33 +96,25 @@
       <ul>
         <li><b>Android（Chrome）</b>：メニュー「⋮」→「ホーム画面に追加」→「インストール」</li>
         <li><b>iPhone（Safari）</b>：共有ボタン（□に↑）→「ホーム画面に追加」</li>
-        <li><b>パソコン（Chrome/Edge）</b>：アドレスバー右端のインストールアイコン、またはメニューから「Podcast Studioをインストール」</li>
         <li>追加後はアイコンから起動でき、オフラインでも使えます</li>
       </ul>
-      <div class="note">インストールの項目が出てこない場合は、一度ページを再読み込みしてから数秒待つか、ブラウザを最新版に更新してみてください。</div>
     </div>
 
     <h2>🔒 セキュリティについて</h2>
     <div class="card">
-      <p>録音データは、すべてこの端末（スマホ・パソコン）の中だけに保存されます。AI処理を使わない限り、インターネットのどこにも送られません。</p>
-      <p style="margin-top: 0.6rem;">Claude APIキーはこの端末のブラウザにのみ保存されます。AI処理を実行すると、録音データとAPIキーがClaudeのAPIサーバーに送信されます。他人と共有する端末では、APIキーの入力・録音データの取り扱いに注意してください。</p>
-    </div>
-
-    <h3 style="margin-top: 1.5rem;">よくある質問（Q&A）</h3>
-    <div class="card">
-      <p><b>Q. 録音データはどこに保存されますか？</b><br>A. この端末（今使っているスマホやパソコン）のメモリ上だけです。ページを閉じると消えるため、必要な録音は先にダウンロードしてください。</p>
-      <p style="margin-top: 0.8rem;"><b>Q. AI処理は必ず使えますか？</b><br>A. ブラウザの制限やAPI側の仕様により失敗することがあります。失敗した場合はタイトル・説明文を手動で入力してください。</p>
-      <p style="margin-top: 0.8rem;"><b>Q. マイクが使えません</b><br>A. HTTPS環境（このアプリのURLはHTTPSです）でブラウザのマイク許可がオンになっているか確認してください。</p>
+      <p>録音した音声・入力した番組情報・カバー画像は、すべてこの端末（スマホ・パソコン）の中だけで処理されます。インターネットのどこにも送られません。開発した人を含め、他の誰かが内容を見聞きすることはできません。</p>
+      <p style="margin-top: 0.6rem;">アクセス解析・広告・トラッキングの類のスクリプトも入っておらず、外部にデータを送る通信処理自体が存在しません（GitHub Pages上の静的ファイルのみで動作します）。</p>
+      <div class="note warn">録音データはページを閉じると消えます（保存はされません）。残したい音声は必ず「⬇ WAVでダウンロード」で保存してください。</div>
     </div>
 
     <h2>❓ 困ったとき</h2>
     <div class="card">
       <ul>
+        <li><b>マイクが使えない</b>：ブラウザのマイク許可を確認してください。HTTPS（またはlocalhost）でないと録音できません</li>
+        <li><b>音が出ない</b>：端末の音量とサイレントスイッチを確認してください</li>
         <li><b>最新版にならない</b>：アプリを完全に終了して開き直してください</li>
-        <li><b>それでも古い</b>：ブラウザの「サイトの設定」からこのサイトの<b>キャッシュのみ</b>削除</li>
       </ul>
     </div>
-
   </div>
 </body>
 </html>
