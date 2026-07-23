@@ -60,6 +60,20 @@ Create and deploy a PWA memo app to any GitHub repository.
 
 See `.claude/skills/memo-pwa.md` for details.
 
+### /podcast-studio
+
+Create and deploy a Podcast Studio PWA app (multi-track recording/mixing, WAV export,
+optional AI-assisted title/description generation) to any GitHub repository. Unlike
+`/memo-pwa`, this generates a React + Vite + Tailwind project (source in
+`{app-dir}-app/`) that must be built (`npm install && npm run build`) into a sibling
+`{app-dir}/` directory before it can be served.
+
+```
+/podcast-studio --app-name "Podcast Studio" --theme-color "#4c1d95"
+```
+
+See `.claude/skills/podcast-studio.md` for details.
+
 ## Development
 
 - Branch: `claude/execution-9vl80x` (feature development)
