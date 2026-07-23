@@ -60,10 +60,20 @@ self.addEventListener('fetch', (event) => {
           cache.put(event.request, responseToCache);
         });
         return response;
-      }).catch(() => {
-        return caches.match(event.request).then((cachedResponse) => {
-          return cachedResponse || caches.match('./index.html');
-        });
+      }).catch(async () => {
+        // キャッシュに何も無い場合（初回起動直後のオフライン等）でも
+        // respondWith() に undefined を渡すと「オブジェクトを読み込めません」の
+        // ようなブラウザのネイティブエラー画面になってしまうため、
+        // 最終手段として必ず有効なResponseを返す。
+        const cachedResponse = await caches.match(event.request);
+        if (cachedResponse) return cachedResponse;
+        const cachedIndex = await caches.match('./index.html');
+        if (cachedIndex) return cachedIndex;
+        return new Response(
+          '<!DOCTYPE html><html lang="ja"><body style="font-family:sans-serif;padding:2rem;text-align:center;">' +
+          '<h1>オフラインです</h1><p>ネットワークに接続してから再読み込みしてください。</p></body></html>',
+          { status: 503, headers: { 'Content-Type': 'text/html; charset=utf-8' } }
+        );
       })
     );
     return;
