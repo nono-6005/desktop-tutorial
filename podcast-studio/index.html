@@ -2,18 +2,724 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="theme-color" content="#4c1d95">
-  <meta name="description" content="録音・編集＆AI処理ができる個人用ポッドキャスト編集アプリ">
-  <title>🎙️ Podcast Studio</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Podcast Studio</title>
+  <meta name="theme-color" content="#6d28d9">
+  <meta name="description" content="マイク録音・複数トラック編集・ミックス再生・WAV書き出しができるローカル完結のポッドキャスト編集アプリ">
   <link rel="manifest" href="./manifest.json">
   <link rel="icon" href="./icons/icon.svg" type="image/svg+xml">
-  <link rel="apple-touch-icon" href="./icons/icon-192.png">
-  <script type="module" crossorigin src="./assets/index-db588074.js"></script>
-  <link rel="stylesheet" href="./assets/index-c896525c.css">
+  <link rel="apple-touch-icon" href="./icons/icon.svg">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Podcast Studio">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+    html, body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', sans-serif;
+      background: linear-gradient(160deg, #2e1065 0%, #1e1b4b 50%, #172554 100%);
+      color: #e9e5ff;
+      min-height: 100vh;
+      min-height: 100dvh;
+    }
+
+    .wrap {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 1.25rem 1rem calc(2rem + env(safe-area-inset-bottom));
+      padding-top: max(1.25rem, env(safe-area-inset-top));
+    }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1.5rem;
+    }
+
+    .header h1 { font-size: 1.5rem; font-weight: 700; }
+    .header .sub { font-size: 0.75rem; color: #b8b0e8; margin-top: 2px; }
+
+    .header-links { display: flex; gap: 0.5rem; align-items: center; }
+
+    .icon-btn {
+      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.15);
+      color: #e9e5ff;
+      width: 2.4rem;
+      height: 2.4rem;
+      border-radius: 10px;
+      font-size: 1.1rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .icon-btn:hover { background: rgba(255,255,255,0.18); }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 1rem;
+    }
+    @media (min-width: 800px) and (pointer: fine) {
+      .grid { grid-template-columns: 1.6fr 1fr; align-items: start; }
+    }
+
+    .col { display: flex; flex-direction: column; gap: 1rem; }
+
+    .card {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(150,130,220,0.2);
+      border-radius: 14px;
+      padding: 1.1rem;
+    }
+
+    .card h2 {
+      font-size: 1.05rem;
+      font-weight: 600;
+      margin-bottom: 0.9rem;
+    }
+
+    .btn {
+      width: 100%;
+      padding: 0.9rem 1rem;
+      border: none;
+      border-radius: 10px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      transition: background 0.15s, opacity 0.15s;
+      color: #fff;
+    }
+    .btn:disabled { background: #4b4b6b !important; opacity: 0.6; cursor: not-allowed; }
+
+    .btn-rec { background: #dc2626; }
+    .btn-rec:hover { background: #b91c1c; }
+    .btn-stop { background: #ea580c; }
+    .btn-stop:hover { background: #c2410c; }
+    .btn-play { background: #2563eb; }
+    .btn-play:hover { background: #1d4ed8; }
+    .btn-dl { background: #7c3aed; }
+    .btn-dl:hover { background: #6d28d9; }
+
+    .rec-indicator {
+      display: inline-block;
+      width: 0.7rem;
+      height: 0.7rem;
+      border-radius: 50%;
+      background: #fff;
+      animation: pulse 1s infinite;
+    }
+    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.25; } }
+
+    .rec-timer {
+      text-align: center;
+      font-variant-numeric: tabular-nums;
+      font-size: 1.6rem;
+      font-weight: 700;
+      margin-bottom: 0.9rem;
+      letter-spacing: 0.05em;
+      color: #c4b5fd;
+    }
+
+    .empty { color: #9d94d6; font-size: 0.88rem; text-align: center; padding: 1rem 0; }
+
+    .track {
+      background: rgba(0,0,0,0.25);
+      border-radius: 10px;
+      padding: 0.85rem;
+      margin-bottom: 0.7rem;
+    }
+    .track:last-child { margin-bottom: 0; }
+
+    .track-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.6rem;
+    }
+    .track-title { font-weight: 600; font-size: 0.92rem; }
+    .track-dur { font-size: 0.75rem; color: #9d94d6; }
+
+    .track-actions { display: flex; gap: 0.35rem; }
+    .mini-btn {
+      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.15);
+      color: #e9e5ff;
+      border-radius: 7px;
+      padding: 0.3rem 0.5rem;
+      font-size: 0.8rem;
+      cursor: pointer;
+    }
+    .mini-btn:hover { background: rgba(255,255,255,0.2); }
+    .mini-btn.danger:hover { background: #dc2626; border-color: #dc2626; }
+
+    .vol-row { display: flex; align-items: center; gap: 0.6rem; }
+    .vol-row label { font-size: 0.8rem; color: #c4b5fd; white-space: nowrap; }
+    .vol-row input[type=range] { flex: 1; accent-color: #a78bfa; }
+    .vol-row .vol-val { font-size: 0.8rem; width: 3rem; text-align: right; color: #c4b5fd; }
+
+    .field { margin-bottom: 0.9rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.8rem; font-weight: 600; margin-bottom: 0.35rem; color: #c4b5fd; }
+    .field input[type=text], .field textarea {
+      width: 100%;
+      padding: 0.6rem 0.7rem;
+      background: rgba(0,0,0,0.3);
+      border: 1px solid rgba(150,130,220,0.3);
+      border-radius: 8px;
+      color: #e9e5ff;
+      font-size: 0.9rem;
+      font-family: inherit;
+    }
+    .field input:focus, .field textarea:focus { outline: none; border-color: #a78bfa; }
+    .field textarea { resize: vertical; min-height: 4.5rem; }
+
+    .cover-preview { margin-top: 0.6rem; width: 100%; border-radius: 8px; display: block; }
+
+    .file-input {
+      width: 100%;
+      font-size: 0.8rem;
+      color: #c4b5fd;
+    }
+    .file-input::file-selector-button {
+      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.15);
+      color: #e9e5ff;
+      border-radius: 7px;
+      padding: 0.4rem 0.7rem;
+      margin-right: 0.6rem;
+      cursor: pointer;
+      font-size: 0.8rem;
+    }
+
+    .toast {
+      position: fixed;
+      left: 50%;
+      bottom: calc(1.5rem + env(safe-area-inset-bottom));
+      transform: translate(-50%, 20px);
+      background: #1e1b4b;
+      border: 1px solid rgba(167,139,250,0.4);
+      color: #e9e5ff;
+      padding: 0.7rem 1.1rem;
+      border-radius: 10px;
+      font-size: 0.85rem;
+      z-index: 9999;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s, transform 0.25s;
+      max-width: 90vw;
+      text-align: center;
+    }
+    .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+    .update-banner {
+      position: fixed;
+      left: 50%;
+      bottom: calc(1.5rem + env(safe-area-inset-bottom));
+      transform: translate(-50%, 10px);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: #1e1b4b;
+      border: 1px solid rgba(167,139,250,0.4);
+      color: #e9e5ff;
+      padding: 10px 12px 10px 16px;
+      border-radius: 10px;
+      font-size: 13px;
+      z-index: 9999;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s, transform 0.25s;
+    }
+    .update-banner.show { opacity: 1; transform: translate(-50%, 0); pointer-events: auto; }
+    .update-banner button {
+      background: #7c3aed; color: white; border: none;
+      padding: 6px 12px; border-radius: 7px; font-size: 12px;
+      font-weight: 600; cursor: pointer; white-space: nowrap;
+    }
+
+    .note {
+      font-size: 0.75rem;
+      color: #9d94d6;
+      line-height: 1.5;
+      margin-top: 0.6rem;
+    }
+  </style>
 </head>
 <body>
-  <div id="root"></div>
-  
+  <div class="wrap">
+    <div class="header">
+      <div>
+        <h1>🎙️ Podcast Studio</h1>
+        <div class="sub">録音・編集・書き出し（すべて端末内で完結）</div>
+      </div>
+      <div class="header-links">
+        <a class="icon-btn" href="./manual.html" title="使い方">📖</a>
+      </div>
+    </div>
+
+    <div class="grid">
+      <!-- 左：録音・トラック・再生 -->
+      <div class="col">
+        <div class="card">
+          <h2>録音</h2>
+          <div class="rec-timer" id="recTimer">00:00</div>
+          <button class="btn btn-rec" id="recBtn">
+            <span id="recBtnLabel">🎤 録音開始</span>
+          </button>
+          <div class="note">マイクの使用許可を求められたら「許可」を選んでください。録音した音声は端末内にのみ保持されます。</div>
+        </div>
+
+        <div class="card">
+          <h2>トラック（<span id="trackCount">0</span>）</h2>
+          <div id="trackList">
+            <div class="empty" id="trackEmpty">まだトラックがありません。録音するとここに追加されます。</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <button class="btn btn-play" id="playBtn" disabled>
+            <span id="playBtnLabel">▶ 全トラックをミックス再生</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- 右：メタデータ・書き出し -->
+      <div class="col">
+        <div class="card">
+          <h2>番組情報</h2>
+          <div class="field">
+            <label for="titleInput">タイトル</label>
+            <input type="text" id="titleInput" placeholder="例: 第1回 はじめまして">
+          </div>
+          <div class="field">
+            <label for="descInput">説明</label>
+            <textarea id="descInput" placeholder="この回の内容メモなど"></textarea>
+          </div>
+          <div class="field">
+            <label for="coverInput">カバー画像</label>
+            <input type="file" id="coverInput" accept="image/*" class="file-input">
+            <img id="coverPreview" class="cover-preview" style="display:none;" alt="カバー画像プレビュー">
+          </div>
+        </div>
+
+        <div class="card">
+          <h2>書き出し</h2>
+          <button class="btn btn-dl" id="downloadBtn" disabled>⬇ WAVでダウンロード</button>
+          <div class="note">全トラックを1つにミックスしてWAVファイルとして保存します。番組情報（タイトル等）はテキストとして別途保存できます。</div>
+          <button class="btn btn-dl" id="downloadMetaBtn" style="margin-top:0.6rem; background:#4f46e5;" disabled>📝 番組情報をテキスト保存</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <div class="update-banner" id="updateBanner">
+    <span>新しいバージョンがあります</span>
+    <button id="updateBannerBtn" type="button">更新</button>
+  </div>
+
+  <script>
+    'use strict';
+    const $ = (id) => document.getElementById(id);
+
+    // ===== 状態 =====
+    let audioCtx = null;
+    let mediaRecorder = null;
+    let mediaStream = null;
+    let recordedChunks = [];
+    let recTimerId = null;
+    let recStartMs = 0;
+    let isRecording = false;
+    let isPlaying = false;
+    let playSource = null;
+    let trackSeq = 0;
+    // tracks: { id, name, buffer(AudioBuffer), volume, duration }
+    const tracks = [];
+
+    function getCtx() {
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      return audioCtx;
+    }
+
+    function showToast(text, ms = 2200) {
+      const t = $('toast');
+      t.textContent = text;
+      t.classList.add('show');
+      clearTimeout(showToast._id);
+      showToast._id = setTimeout(() => t.classList.remove('show'), ms);
+    }
+
+    function fmtTime(totalSec) {
+      const s = Math.max(0, Math.floor(totalSec));
+      const m = Math.floor(s / 60);
+      const r = s % 60;
+      return String(m).padStart(2, '0') + ':' + String(r).padStart(2, '0');
+    }
+
+    // ===== 録音 =====
+    async function startRecording() {
+      try {
+        mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      } catch (err) {
+        showToast('マイクを使用できません: ' + (err && err.message ? err.message : err), 4000);
+        return;
+      }
+      recordedChunks = [];
+      let recorder;
+      try {
+        recorder = new MediaRecorder(mediaStream);
+      } catch (err) {
+        showToast('録音を開始できませんでした: ' + err.message, 4000);
+        stopStream();
+        return;
+      }
+      mediaRecorder = recorder;
+      recorder.ondataavailable = (e) => { if (e.data && e.data.size > 0) recordedChunks.push(e.data); };
+      recorder.onstop = handleRecordingStop;
+      recorder.start();
+
+      isRecording = true;
+      recStartMs = Date.now();
+      updateRecTimer();
+      recTimerId = setInterval(updateRecTimer, 250);
+      renderRecButton();
+    }
+
+    function updateRecTimer() {
+      $('recTimer').textContent = fmtTime((Date.now() - recStartMs) / 1000);
+    }
+
+    function stopRecording() {
+      if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+        mediaRecorder.stop();
+      }
+      isRecording = false;
+      clearInterval(recTimerId);
+      recTimerId = null;
+      renderRecButton();
+    }
+
+    function stopStream() {
+      if (mediaStream) {
+        mediaStream.getTracks().forEach((t) => t.stop());
+        mediaStream = null;
+      }
+    }
+
+    async function handleRecordingStop() {
+      const blob = new Blob(recordedChunks, { type: recordedChunks[0] ? recordedChunks[0].type : 'audio/webm' });
+      stopStream();
+      $('recTimer').textContent = '00:00';
+      if (blob.size === 0) { showToast('録音データが空でした'); return; }
+      try {
+        const arrayBuf = await blob.arrayBuffer();
+        const audioBuf = await getCtx().decodeAudioData(arrayBuf);
+        trackSeq += 1;
+        tracks.push({
+          id: Date.now() + '_' + trackSeq,
+          name: 'トラック ' + trackSeq,
+          buffer: audioBuf,
+          volume: 1,
+          duration: audioBuf.duration,
+        });
+        renderTracks();
+        showToast('トラックを追加しました');
+      } catch (err) {
+        showToast('録音の変換に失敗しました: ' + err.message, 4000);
+      }
+    }
+
+    function renderRecButton() {
+      const btn = $('recBtn');
+      const label = $('recBtnLabel');
+      if (isRecording) {
+        btn.className = 'btn btn-stop';
+        label.innerHTML = '<span class="rec-indicator"></span> 停止';
+      } else {
+        btn.className = 'btn btn-rec';
+        label.textContent = '🎤 録音開始';
+      }
+    }
+
+    // ===== トラック描画 =====
+    function renderTracks() {
+      const list = $('trackList');
+      $('trackCount').textContent = tracks.length;
+      const hasTracks = tracks.length > 0;
+      $('playBtn').disabled = !hasTracks || isPlaying;
+      $('downloadBtn').disabled = !hasTracks;
+
+      if (!hasTracks) {
+        list.innerHTML = '<div class="empty" id="trackEmpty">まだトラックがありません。録音するとここに追加されます。</div>';
+        return;
+      }
+
+      list.innerHTML = tracks.map((t, i) => `
+        <div class="track" data-id="${t.id}">
+          <div class="track-head">
+            <div>
+              <div class="track-title">${escapeHtml(t.name)}</div>
+              <div class="track-dur">${t.duration.toFixed(1)} 秒</div>
+            </div>
+            <div class="track-actions">
+              <button class="mini-btn" data-act="preview" data-id="${t.id}">▶ 試聴</button>
+              <button class="mini-btn danger" data-act="delete" data-id="${t.id}">🗑</button>
+            </div>
+          </div>
+          <div class="vol-row">
+            <label>音量</label>
+            <input type="range" min="0" max="1" step="0.05" value="${t.volume}" data-act="vol" data-id="${t.id}">
+            <span class="vol-val">${Math.round(t.volume * 100)}%</span>
+          </div>
+        </div>
+      `).join('');
+
+      list.querySelectorAll('[data-act="vol"]').forEach((el) => {
+        el.addEventListener('input', (e) => {
+          const t = tracks.find((x) => x.id === el.dataset.id);
+          if (!t) return;
+          t.volume = parseFloat(e.target.value);
+          el.parentElement.querySelector('.vol-val').textContent = Math.round(t.volume * 100) + '%';
+        });
+      });
+      list.querySelectorAll('[data-act="delete"]').forEach((el) => {
+        el.addEventListener('click', () => {
+          if (!confirm('このトラックを削除しますか？')) return;
+          const idx = tracks.findIndex((x) => x.id === el.dataset.id);
+          if (idx >= 0) { tracks.splice(idx, 1); renderTracks(); }
+        });
+      });
+      list.querySelectorAll('[data-act="preview"]').forEach((el) => {
+        el.addEventListener('click', () => {
+          const t = tracks.find((x) => x.id === el.dataset.id);
+          if (t) previewTrack(t);
+        });
+      });
+    }
+
+    function escapeHtml(str) {
+      return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    // ===== 単体試聴 =====
+    function previewTrack(t) {
+      const ctx = getCtx();
+      const src = ctx.createBufferSource();
+      src.buffer = t.buffer;
+      const gain = ctx.createGain();
+      gain.gain.value = t.volume;
+      src.connect(gain).connect(ctx.destination);
+      src.start();
+    }
+
+    // ===== 全トラックをオフラインでミックス =====
+    async function renderMix() {
+      const ctx = getCtx();
+      const maxDur = Math.max(...tracks.map((t) => t.duration));
+      const sampleRate = ctx.sampleRate;
+      const offline = new OfflineAudioContext(2, Math.ceil(sampleRate * maxDur), sampleRate);
+      tracks.forEach((t) => {
+        const src = offline.createBufferSource();
+        src.buffer = t.buffer;
+        const gain = offline.createGain();
+        gain.gain.value = t.volume;
+        src.connect(gain).connect(offline.destination);
+        src.start(0);
+      });
+      return offline.startRendering();
+    }
+
+    // ===== ミックス再生 =====
+    async function playMix() {
+      if (tracks.length === 0 || isPlaying) return;
+      isPlaying = true;
+      renderPlayButton();
+      try {
+        const rendered = await renderMix();
+        const ctx = getCtx();
+        const src = ctx.createBufferSource();
+        src.buffer = rendered;
+        src.connect(ctx.destination);
+        src.onended = () => { isPlaying = false; playSource = null; renderPlayButton(); renderTracks(); };
+        playSource = src;
+        src.start();
+      } catch (err) {
+        isPlaying = false;
+        renderPlayButton();
+        showToast('再生に失敗しました: ' + err.message, 4000);
+      }
+    }
+
+    function stopMix() {
+      if (playSource) { try { playSource.stop(); } catch (e) {} }
+      isPlaying = false;
+      playSource = null;
+      renderPlayButton();
+    }
+
+    function renderPlayButton() {
+      const btn = $('playBtn');
+      const label = $('playBtnLabel');
+      if (isPlaying) {
+        label.textContent = '⏹ 停止';
+        btn.disabled = false;
+      } else {
+        label.textContent = '▶ 全トラックをミックス再生';
+        btn.disabled = tracks.length === 0;
+      }
+    }
+
+    // ===== WAV変換 =====
+    function audioBufferToWav(buffer) {
+      const numCh = buffer.numberOfChannels;
+      const sampleRate = buffer.sampleRate;
+      const bitDepth = 16;
+      const bytesPerSample = bitDepth / 8;
+      const blockAlign = numCh * bytesPerSample;
+
+      const channels = [];
+      for (let i = 0; i < numCh; i++) channels.push(buffer.getChannelData(i));
+
+      const frameCount = buffer.length;
+      const interleaved = new Float32Array(frameCount * numCh);
+      let off = 0;
+      for (let i = 0; i < frameCount; i++) {
+        for (let c = 0; c < numCh; c++) interleaved[off++] = channels[c][i];
+      }
+
+      const dataLength = interleaved.length * bytesPerSample;
+      const ab = new ArrayBuffer(44 + dataLength);
+      const view = new DataView(ab);
+      const writeStr = (o, s) => { for (let i = 0; i < s.length; i++) view.setUint8(o + i, s.charCodeAt(i)); };
+
+      writeStr(0, 'RIFF');
+      view.setUint32(4, 36 + dataLength, true);
+      writeStr(8, 'WAVE');
+      writeStr(12, 'fmt ');
+      view.setUint32(16, 16, true);
+      view.setUint16(20, 1, true);
+      view.setUint16(22, numCh, true);
+      view.setUint32(24, sampleRate, true);
+      view.setUint32(28, sampleRate * blockAlign, true);
+      view.setUint16(32, blockAlign, true);
+      view.setUint16(34, bitDepth, true);
+      writeStr(36, 'data');
+      view.setUint32(40, dataLength, true);
+
+      let idx = 44;
+      for (let i = 0; i < interleaved.length; i++) {
+        let s = Math.max(-1, Math.min(1, interleaved[i]));
+        view.setInt16(idx, s < 0 ? s * 0x8000 : s * 0x7fff, true);
+        idx += 2;
+      }
+      return new Blob([ab], { type: 'audio/wav' });
+    }
+
+    function safeFileName(name, fallback) {
+      const base = (name || fallback).trim() || fallback;
+      return base.replace(/[\\/:*?"<>|]/g, '_');
+    }
+
+    function triggerDownload(blob, filename) {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      a.style.display = 'none';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 2000);
+    }
+
+    async function downloadWav() {
+      if (tracks.length === 0) return;
+      showToast('WAVを書き出しています...');
+      try {
+        const rendered = await renderMix();
+        const wav = audioBufferToWav(rendered);
+        triggerDownload(wav, safeFileName($('titleInput').value, 'podcast') + '.wav');
+        showToast('WAVをダウンロードしました');
+      } catch (err) {
+        showToast('書き出しに失敗しました: ' + err.message, 4000);
+      }
+    }
+
+    function downloadMeta() {
+      const title = $('titleInput').value.trim();
+      const desc = $('descInput').value.trim();
+      const lines = [
+        'タイトル: ' + (title || '(未入力)'),
+        '',
+        '説明:',
+        desc || '(未入力)',
+        '',
+        'トラック数: ' + tracks.length,
+      ];
+      const blob = new Blob([lines.join('\n')], { type: 'text/plain;charset=utf-8' });
+      triggerDownload(blob, safeFileName(title, 'podcast') + '.txt');
+      showToast('番組情報を保存しました');
+    }
+
+    // ===== カバー画像 =====
+    $('coverInput').addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const img = $('coverPreview');
+        img.src = ev.target.result;
+        img.style.display = 'block';
+      };
+      reader.readAsDataURL(file);
+    });
+
+    // ===== メタデータ入力で保存ボタンを活性化 =====
+    function refreshMetaButton() {
+      const hasMeta = $('titleInput').value.trim() || $('descInput').value.trim();
+      $('downloadMetaBtn').disabled = !hasMeta;
+    }
+    $('titleInput').addEventListener('input', refreshMetaButton);
+    $('descInput').addEventListener('input', refreshMetaButton);
+
+    // ===== ボタン結線 =====
+    $('recBtn').addEventListener('click', () => { isRecording ? stopRecording() : startRecording(); });
+    $('playBtn').addEventListener('click', () => { isPlaying ? stopMix() : playMix(); });
+    $('downloadBtn').addEventListener('click', downloadWav);
+    $('downloadMetaBtn').addEventListener('click', downloadMeta);
+
+    // 初期描画
+    renderTracks();
+    renderRecButton();
+    renderPlayButton();
+
+    // ===== Service Worker =====
+    if ('serviceWorker' in navigator) {
+      const hadControllerAtLoad = !!navigator.serviceWorker.controller;
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js').then((reg) => {
+          reg.update().catch(() => {});
+          document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') reg.update().catch(() => {});
+          });
+        }).catch(() => {});
+      });
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (!hadControllerAtLoad) return;
+        $('updateBanner')?.classList.add('show');
+      });
+      $('updateBannerBtn')?.addEventListener('click', () => window.location.reload());
+    }
+  </script>
 </body>
 </html>

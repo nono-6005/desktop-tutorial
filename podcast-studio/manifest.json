@@ -1,38 +1,14 @@
 {
   "name": "Podcast Studio",
-  "short_name": "Podcast Studio",
-  "description": "録音・編集＆AI処理ができる個人用ポッドキャスト編集アプリ",
+  "short_name": "Podcast",
+  "description": "マイク録音・複数トラック編集・ミックス再生・WAV書き出しができるローカル完結のポッドキャスト編集アプリ",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait-primary",
   "background_color": "#1e1b4b",
-  "theme_color": "#4c1d95",
+  "theme_color": "#6d28d9",
   "icons": [
-    {
-      "src": "./icons/icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any"
-    },
-    {
-      "src": "./icons/icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any"
-    },
-    {
-      "src": "./icons/icon-192-maskable.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "maskable"
-    },
-    {
-      "src": "./icons/icon-512-maskable.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "maskable"
-    },
     {
       "src": "./icons/icon.svg",
       "sizes": "any",
@@ -40,5 +16,5 @@
       "purpose": "any"
     }
   ],
-  "categories": ["utilities", "productivity", "multimedia"]
+  "categories": ["music", "productivity", "utilities"]
 }
