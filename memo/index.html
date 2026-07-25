@@ -32,7 +32,6 @@
 
     body {
       display: flex;
-      justify-content: center;
     }
 
     input, textarea {
@@ -45,12 +44,7 @@
       flex-direction: column;
       height: 100vh;
       width: 100%;
-      max-width: var(--app-max-width, 480px);
       box-shadow: 0 0 40px rgba(0, 0, 0, 0.5);
-    }
-
-    :root {
-      --app-max-width: 480px;
     }
 
     /* ===== タブバー ===== */
@@ -780,7 +774,7 @@
     .fab {
       position: fixed;
       bottom: 1.5rem;
-      right: calc((100vw - min(100vw, var(--app-max-width, 480px))) / 2 + 1.5rem);
+      right: 1.5rem;
       z-index: 50;
       width: 3.5rem;
       height: 3.5rem;
@@ -985,10 +979,7 @@
 
       .fab {
         bottom: max(1.5rem, calc(1.5rem + env(safe-area-inset-bottom)));
-        right: max(
-          calc((100vw - min(100vw, var(--app-max-width, 480px))) / 2 + 1.5rem),
-          calc(1.5rem + env(safe-area-inset-right))
-        );
+        right: max(1.5rem, calc(1.5rem + env(safe-area-inset-right)));
       }
 
       .toast {
@@ -1001,21 +992,10 @@
        CSS上の実効幅がたまたま768px以上になるスマートフォン（大画面機種・
        表示設定によっては起こりうる）が誤って2ペイン表示になるのを防ぐ。 */
     @media (min-width: 768px) and (pointer: fine) {
-      /* 画面幅いっぱいに表示する（中央に寄せた箱型レイアウトをやめる） */
-      :root {
-        --app-max-width: none;
-      }
-
       .memo-layout {
         flex-direction: row;
       }
 
-      /* 全画面表示になった分、右下FABは画面端からの固定オフセットに戻す
-         （中央寄せ幅を前提にしたcalc(min(100vw, var(--app-max-width)))は
-          --app-max-widthがnoneのときmin()の引数として無効になるため使えない） */
-      .fab {
-        right: 1.5rem;
-      }
 
       .memo-layout .list-view {
         width: 340px;
