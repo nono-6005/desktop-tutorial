@@ -48,24 +48,24 @@ stays on-device. Do not reintroduce client-side API-key calls here.
 
 ### tools (My Tools — Threadsデモ / JSON保管庫)
 
-A pair of build-free HTML pages backed by Supabase (Database + Auth) so data syncs
-between phone and PC, per `PROJECT_PACKAGE.md` (the Lv4 spec this was built from):
+A pair of build-free HTML pages, originally scoped per `PROJECT_PACKAGE.md` (the Lv4
+spec this was built from) to sync via Supabase — **downgraded to localStorage-only**
+at the user's request after Supabase Magic Link sign-in didn't work in practice. No
+login, no cross-device sync; each browser's data stays local to that browser.
 - **Threadsデモ** (`tools/threads.html`) — post creation, tree replies, delete, TL
   reset, JSON export
 - **JSON保管庫** (`tools/json-storage.html`) — save/load/delete/format arbitrary JSON,
   export, import
-- Shared Supabase client + CRUD helpers in `tools/app.js` (Magic Link email auth, one
-  `records` table, RLS scoped to `auth.uid() = user_id`)
+- Shared localStorage CRUD helpers in `tools/app.js` (single `tools_records` key,
+  same record shape as before: `id`/`type`/`title`/`content`/`data`/`created_at`/
+  `updated_at`)
 
 **Live:** https://nono-6005.github.io/desktop-tutorial/tools/
-(Requires a Supabase project — see `tools/README.md` for the SQL schema/RLS setup and
-where to put `SUPABASE_URL`/`SUPABASE_ANON_KEY` in `tools/app.js`. Never put the
-`service_role` key in this client-side code.)
+No setup required — works immediately once deployed.
 
-Unlike the other three apps, this one is **not a PWA** (no `manifest.json`/`sw.js`) —
-it's a plain always-online Supabase-sync tool, so offline/install support isn't
-applicable. It still lives in its own `tools/` subdirectory per "PWA scope isolation"
-below, to keep it isolated from the other apps' folders.
+Unlike the other three apps, this one is **not a PWA** (no `manifest.json`/`sw.js`).
+It still lives in its own `tools/` subdirectory per "PWA scope isolation" below, to
+keep it isolated from the other apps' folders.
 
 ## Available Skills
 

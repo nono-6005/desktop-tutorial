@@ -125,17 +125,7 @@
   <main>
     <section class="panel">
       <h1>JSON保管庫</h1>
-
-      <div id="authLoggedOut">
-        <input id="email" type="email" placeholder="メールアドレス">
-        <div class="row">
-          <button id="loginBtn" class="primary">ログインリンクを送る</button>
-        </div>
-      </div>
-
-      <div id="authLoggedIn" class="hidden">
-        <button id="logoutBtn" class="secondary">ログアウト</button>
-      </div>
+      <p class="muted">このブラウザ内にのみ保存されます（端末間の同期はありません）。</p>
     </section>
 
     <section class="panel">
@@ -171,22 +161,12 @@
 
   <script type="module">
     import {
-      supabase,
-      getCurrentUser,
-      signInWithEmail,
-      signOut,
       listRecords,
       createRecord,
       deleteRecord,
       downloadJson,
       readJsonFile
     } from "./app.js";
-
-    const email = document.querySelector("#email");
-    const loginBtn = document.querySelector("#loginBtn");
-    const logoutBtn = document.querySelector("#logoutBtn");
-    const authLoggedOut = document.querySelector("#authLoggedOut");
-    const authLoggedIn = document.querySelector("#authLoggedIn");
 
     const title = document.querySelector("#title");
     const jsonInput = document.querySelector("#jsonInput");
@@ -197,21 +177,7 @@
     const importFile = document.querySelector("#importFile");
     const records = document.querySelector("#records");
 
-    async function refreshAuth() {
-      const user = await getCurrentUser().catch(() => null);
-      authLoggedOut.classList.toggle("hidden", !!user);
-      authLoggedIn.classList.toggle("hidden", !user);
-      return user;
-    }
-
     async function renderRecords() {
-      const user = await refreshAuth();
-
-      if (!user) {
-        records.innerHTML = '<p class="muted">ログインすると保存データを表示できます。</p>';
-        return;
-      }
-
       const items = await listRecords("json_data");
 
       if (!items.length) {
@@ -257,19 +223,6 @@
         records.appendChild(wrap);
       }
     }
-
-    loginBtn.addEventListener("click", async () => {
-      const value = email.value.trim();
-      if (!value) return alert("メールアドレスを入力してください");
-
-      await signInWithEmail(value);
-      alert("ログイン用リンクを送信しました");
-    });
-
-    logoutBtn.addEventListener("click", async () => {
-      await signOut();
-      await renderRecords();
-    });
 
     formatBtn.addEventListener("click", () => {
       try {
@@ -334,10 +287,6 @@
 
       importFile.value = "";
       await renderRecords();
-    });
-
-    supabase.auth.onAuthStateChange(() => {
-      renderRecords();
     });
 
     renderRecords();

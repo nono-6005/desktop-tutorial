@@ -1,49 +1,29 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+const STORAGE_KEY = "tools_records";
 
-const SUPABASE_URL = "https://fefswwyetosdazzysrag.supabase.co";
-const SUPABASE_ANON_KEY = "sb_publishable_RazPOzVCW_MPoC2pFMpBaQ_r0CGqAjr";
-
-export const supabase = createClient(
-  SUPABASE_URL,
-  SUPABASE_ANON_KEY
-);
-
-export async function getCurrentUser() {
-  const { data, error } = await supabase.auth.getUser();
-  if (error) throw error;
-  return data.user;
+function loadAll() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
 }
 
-export async function signInWithEmail(email) {
-  const { data, error } = await supabase.auth.signInWithOtp({
-    email,
-    options: {
-      emailRedirectTo: window.location.origin + window.location.pathname
-    }
-  });
-
-  if (error) throw error;
-  return data;
+function saveAll(records) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
 }
 
-export async function signOut() {
-  const { error } = await supabase.auth.signOut();
-  if (error) throw error;
+function generateId() {
+  return crypto.randomUUID();
 }
 
 export async function listRecords(type = null) {
-  let query = supabase
-    .from("records")
-    .select("*")
-    .order("created_at", { ascending: false });
-
-  if (type) {
-    query = query.eq("type", type);
-  }
-
-  const { data, error } = await query;
-  if (error) throw error;
-  return data ?? [];
+  const records = loadAll();
+  const filtered = type ? records.filter(r => r.type === type) : records;
+  return filtered
+    .slice()
+    .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 }
 
 export async function createRecord({
@@ -52,44 +32,45 @@ export async function createRecord({
   content = "",
   data = {}
 }) {
-  const user = await getCurrentUser();
-  if (!user) throw new Error("ログインが必要です");
+  const records = loadAll();
+  const now = new Date().toISOString();
 
-  const { data: created, error } = await supabase
-    .from("records")
-    .insert({
-      user_id: user.id,
-      type,
-      title,
-      content,
-      data
-    })
-    .select()
-    .single();
+  const record = {
+    id: generateId(),
+    type,
+    title,
+    content,
+    data,
+    created_at: now,
+    updated_at: now
+  };
 
-  if (error) throw error;
-  return created;
+  records.push(record);
+  saveAll(records);
+  return record;
 }
 
 export async function updateRecord(id, patch) {
-  const { data, error } = await supabase
-    .from("records")
-    .update(patch)
-    .eq("id", id)
-    .select()
-    .single();
+  const records = loadAll();
+  const index = records.findIndex(r => r.id === id);
 
-  if (error) throw error;
-  return data;
+  if (index === -1) {
+    throw new Error("データが見つかりません");
+  }
+
+  records[index] = {
+    ...records[index],
+    ...patch,
+    updated_at: new Date().toISOString()
+  };
+
+  saveAll(records);
+  return records[index];
 }
 
 export async function deleteRecord(id) {
-  const { error } = await supabase
-    .from("records")
-    .delete()
-    .eq("id", id);
-
-  if (error) throw error;
+  const records = loadAll().filter(r => r.id !== id);
+  saveAll(records);
 }
 
 export function downloadJson(filename, value) {
