@@ -155,6 +155,7 @@
       <div class="row">
         <button id="savePostBtn" class="primary">投稿を保存</button>
         <button id="addTreeBtn" class="secondary">ツリーを追加</button>
+        <button id="cancelEditBtn" class="secondary hidden">編集をキャンセル</button>
       </div>
 
       <div id="treeInputs"></div>
@@ -174,18 +175,48 @@
     import {
       listRecords,
       createRecord,
+      updateRecord,
       deleteRecord
     } from "./app.js";
 
     const postText = document.querySelector("#postText");
     const savePostBtn = document.querySelector("#savePostBtn");
     const addTreeBtn = document.querySelector("#addTreeBtn");
+    const cancelEditBtn = document.querySelector("#cancelEditBtn");
     const treeInputs = document.querySelector("#treeInputs");
     const timeline = document.querySelector("#timeline");
     const refreshBtn = document.querySelector("#refreshBtn");
     const resetBtn = document.querySelector("#resetBtn");
 
     let treeCount = 0;
+    let editingId = null;
+
+    function enterEditMode(record) {
+      editingId = record.id;
+      postText.value = record.content;
+
+      treeInputs.innerHTML = "";
+      treeCount = 0;
+
+      const tree = Array.isArray(record.data?.tree) ? record.data.tree : [];
+      for (const childText of tree) {
+        addTreeInput(childText);
+      }
+
+      savePostBtn.textContent = "投稿を更新";
+      cancelEditBtn.classList.remove("hidden");
+      postText.focus();
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
+    function exitEditMode() {
+      editingId = null;
+      postText.value = "";
+      treeInputs.innerHTML = "";
+      treeCount = 0;
+      savePostBtn.textContent = "投稿を保存";
+      cancelEditBtn.classList.add("hidden");
+    }
 
     function addTreeInput(value = "") {
       treeCount++;
@@ -264,16 +295,24 @@
         const actions = document.createElement("div");
         actions.className = "row";
 
+        const editBtn = document.createElement("button");
+        editBtn.className = "secondary";
+        editBtn.textContent = "編集";
+        editBtn.addEventListener("click", () => {
+          enterEditMode(record);
+        });
+
         const deleteBtn = document.createElement("button");
         deleteBtn.className = "danger";
         deleteBtn.textContent = "削除";
         deleteBtn.addEventListener("click", async () => {
           if (!confirm("この投稿を削除しますか？")) return;
+          if (editingId === record.id) exitEditMode();
           await deleteRecord(record.id);
           await renderTimeline();
         });
 
-        actions.appendChild(deleteBtn);
+        actions.append(editBtn, deleteBtn);
         post.appendChild(actions);
 
         timeline.appendChild(post);
@@ -296,21 +335,26 @@
         .filter(Boolean);
 
       try {
-        await createRecord({
-          type: "threads_post",
-          content,
-          data: { tree }
-        });
+        if (editingId) {
+          await updateRecord(editingId, { content, data: { tree } });
+        } else {
+          await createRecord({
+            type: "threads_post",
+            content,
+            data: { tree }
+          });
+        }
       } catch (error) {
         alert("投稿の保存に失敗しました: " + error.message);
         return;
       }
 
-      postText.value = "";
-      treeInputs.innerHTML = "";
-      treeCount = 0;
-
+      exitEditMode();
       await renderTimeline();
+    });
+
+    cancelEditBtn.addEventListener("click", () => {
+      exitEditMode();
     });
 
     refreshBtn.addEventListener("click", renderTimeline);
@@ -321,6 +365,8 @@
       if (!records.length) return;
 
       if (!confirm("TLの投稿をすべて削除しますか？")) return;
+
+      exitEditMode();
 
       for (const record of records) {
         await deleteRecord(record.id);

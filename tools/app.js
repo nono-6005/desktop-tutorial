@@ -53,6 +53,24 @@ export async function createRecord({
   return record;
 }
 
+export async function updateRecord(id, patch) {
+  const records = loadAll();
+  const index = records.findIndex(r => r.id === id);
+
+  if (index === -1) {
+    throw new Error("データが見つかりません");
+  }
+
+  records[index] = {
+    ...records[index],
+    ...patch,
+    updated_at: new Date().toISOString()
+  };
+
+  saveAll(records);
+  return records[index];
+}
+
 export async function deleteRecord(id) {
   const records = loadAll().filter(r => r.id !== id);
   saveAll(records);
