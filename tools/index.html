@@ -163,7 +163,6 @@
     <section class="panel">
       <div class="row">
         <button id="refreshBtn" class="secondary">再読み込み</button>
-        <button id="exportBtn" class="secondary">JSON書き出し</button>
         <button id="resetBtn" class="danger">TLをリセット</button>
       </div>
     </section>
@@ -175,8 +174,7 @@
     import {
       listRecords,
       createRecord,
-      deleteRecord,
-      downloadJson
+      deleteRecord
     } from "./app.js";
 
     const postText = document.querySelector("#postText");
@@ -185,7 +183,6 @@
     const treeInputs = document.querySelector("#treeInputs");
     const timeline = document.querySelector("#timeline");
     const refreshBtn = document.querySelector("#refreshBtn");
-    const exportBtn = document.querySelector("#exportBtn");
     const resetBtn = document.querySelector("#resetBtn");
 
     let treeCount = 0;
@@ -317,11 +314,6 @@
     });
 
     refreshBtn.addEventListener("click", renderTimeline);
-
-    exportBtn.addEventListener("click", async () => {
-      const records = await listRecords("threads_post");
-      downloadJson("threads-backup.json", records);
-    });
 
     resetBtn.addEventListener("click", async () => {
       const records = await listRecords("threads_post");

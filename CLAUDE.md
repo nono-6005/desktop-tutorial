@@ -50,11 +50,12 @@ stays on-device. Do not reintroduce client-side API-key calls here.
 
 A build-free HTML page, originally scoped per `PROJECT_PACKAGE.md` (the Lv4 spec this
 was built from) as a pair of tools (Threadsデモ + JSON保管庫) synced via Supabase.
-Downgraded twice at the user's request: first to localStorage-only (Supabase Magic
-Link sign-in didn't work in practice), then JSON保管庫 was dropped entirely (not
-useful outside developer/debug use). What's left:
+Downgraded three times at the user's request: first to localStorage-only (Supabase
+Magic Link sign-in didn't work in practice), then JSON保管庫 was dropped entirely
+(not useful outside developer/debug use), then the JSON export/backup button was
+dropped too (unused). What's left:
 - **Threadsデモ** (`tools/index.html`) — post creation, tree replies, delete, TL
-  reset, JSON export (backup only, not sync)
+  reset. No backup/export feature — clearing browser data loses everything.
 - localStorage CRUD helpers in `tools/app.js` (single `tools_records` key; record
   shape: `id`/`type`/`title`/`content`/`data`/`created_at`/`updated_at`)
 
