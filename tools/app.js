@@ -57,17 +57,3 @@ export async function deleteRecord(id) {
   const records = loadAll().filter(r => r.id !== id);
   saveAll(records);
 }
-
-export function downloadJson(filename, value) {
-  const blob = new Blob(
-    [JSON.stringify(value, null, 2)],
-    { type: "application/json;charset=utf-8" }
-  );
-
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  a.click();
-  URL.revokeObjectURL(url);
-}
