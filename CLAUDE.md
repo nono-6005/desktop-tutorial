@@ -46,6 +46,27 @@ no backend) an API key can't be kept secret and would let anyone run up charges 
 account. This app therefore makes **no external network requests at all** — everything
 stays on-device. Do not reintroduce client-side API-key calls here.
 
+### tools (My Tools — Threadsデモ / JSON保管庫)
+
+A pair of build-free HTML pages backed by Supabase (Database + Auth) so data syncs
+between phone and PC, per `PROJECT_PACKAGE.md` (the Lv4 spec this was built from):
+- **Threadsデモ** (`tools/threads.html`) — post creation, tree replies, delete, TL
+  reset, JSON export
+- **JSON保管庫** (`tools/json-storage.html`) — save/load/delete/format arbitrary JSON,
+  export, import
+- Shared Supabase client + CRUD helpers in `tools/app.js` (Magic Link email auth, one
+  `records` table, RLS scoped to `auth.uid() = user_id`)
+
+**Live:** https://nono-6005.github.io/desktop-tutorial/tools/
+(Requires a Supabase project — see `tools/README.md` for the SQL schema/RLS setup and
+where to put `SUPABASE_URL`/`SUPABASE_ANON_KEY` in `tools/app.js`. Never put the
+`service_role` key in this client-side code.)
+
+Unlike the other three apps, this one is **not a PWA** (no `manifest.json`/`sw.js`) —
+it's a plain always-online Supabase-sync tool, so offline/install support isn't
+applicable. It still lives in its own `tools/` subdirectory per "PWA scope isolation"
+below, to keep it isolated from the other apps' folders.
+
 ## Available Skills
 
 ### /memo-pwa
@@ -89,6 +110,11 @@ See `.claude/skills/podcast-studio.md` for details.
 - `podcast-studio/index.html` - Podcast Studio app (recording/editing via Web Audio API)
 - `podcast-studio/manifest.json` - Podcast Studio PWA configuration (scope: `/podcast-studio/`)
 - `podcast-studio/sw.js` - Podcast Studio Service Worker
+- `tools/index.html` - My Tools landing page (links to threads.html / json-storage.html)
+- `tools/app.js` - Shared Supabase client, auth, and CRUD helpers for tools/
+- `tools/threads.html` - Threadsデモ app
+- `tools/json-storage.html` - JSON保管庫 app
+- `tools/README.md` - Supabase setup instructions (SQL schema, RLS, API keys) for tools/
 - `README.md` - User-facing docs
 
 ## PWA scope isolation
