@@ -46,19 +46,19 @@ no backend) an API key can't be kept secret and would let anyone run up charges 
 account. This app therefore makes **no external network requests at all** — everything
 stays on-device. Do not reintroduce client-side API-key calls here.
 
-### tools (My Tools — Threadsデモ / JSON保管庫)
+### tools (Threadsデモ)
 
-A pair of build-free HTML pages, originally scoped per `PROJECT_PACKAGE.md` (the Lv4
-spec this was built from) to sync via Supabase — **downgraded to localStorage-only**
-at the user's request after Supabase Magic Link sign-in didn't work in practice. No
-login, no cross-device sync; each browser's data stays local to that browser.
-- **Threadsデモ** (`tools/threads.html`) — post creation, tree replies, delete, TL
-  reset, JSON export
-- **JSON保管庫** (`tools/json-storage.html`) — save/load/delete/format arbitrary JSON,
-  export, import
-- Shared localStorage CRUD helpers in `tools/app.js` (single `tools_records` key,
-  same record shape as before: `id`/`type`/`title`/`content`/`data`/`created_at`/
-  `updated_at`)
+A build-free HTML page, originally scoped per `PROJECT_PACKAGE.md` (the Lv4 spec this
+was built from) as a pair of tools (Threadsデモ + JSON保管庫) synced via Supabase.
+Downgraded twice at the user's request: first to localStorage-only (Supabase Magic
+Link sign-in didn't work in practice), then JSON保管庫 was dropped entirely (not
+useful outside developer/debug use). What's left:
+- **Threadsデモ** (`tools/index.html`) — post creation, tree replies, delete, TL
+  reset, JSON export (backup only, not sync)
+- localStorage CRUD helpers in `tools/app.js` (single `tools_records` key; record
+  shape: `id`/`type`/`title`/`content`/`data`/`created_at`/`updated_at`)
+
+No login, no cross-device sync — each browser's data stays local to that browser.
 
 **Live:** https://nono-6005.github.io/desktop-tutorial/tools/
 No setup required — works immediately once deployed.
@@ -110,11 +110,9 @@ See `.claude/skills/podcast-studio.md` for details.
 - `podcast-studio/index.html` - Podcast Studio app (recording/editing via Web Audio API)
 - `podcast-studio/manifest.json` - Podcast Studio PWA configuration (scope: `/podcast-studio/`)
 - `podcast-studio/sw.js` - Podcast Studio Service Worker
-- `tools/index.html` - My Tools landing page (links to threads.html / json-storage.html)
-- `tools/app.js` - Shared Supabase client, auth, and CRUD helpers for tools/
-- `tools/threads.html` - Threadsデモ app
-- `tools/json-storage.html` - JSON保管庫 app
-- `tools/README.md` - Supabase setup instructions (SQL schema, RLS, API keys) for tools/
+- `tools/index.html` - Threadsデモ app (localStorage-backed, no login/sync)
+- `tools/app.js` - localStorage CRUD helpers for tools/
+- `tools/README.md` - Docs for tools/ (no setup required)
 - `README.md` - User-facing docs
 
 ## PWA scope isolation
