@@ -50,13 +50,14 @@ stays on-device. Do not reintroduce client-side API-key calls here.
 
 A build-free HTML page, originally scoped per `PROJECT_PACKAGE.md` (the Lv4 spec this
 was built from) as a pair of tools (Threadsデモ + JSON保管庫) synced via Supabase.
-Downgraded three times at the user's request: first to localStorage-only (Supabase
-Magic Link sign-in didn't work in practice), then JSON保管庫 was dropped entirely
-(not useful outside developer/debug use), then the JSON export/backup button was
-dropped too (unused). What's left:
+Downgraded, then partially re-added, at the user's request: first to
+localStorage-only (Supabase Magic Link sign-in didn't work in practice), then
+JSON保管庫 was dropped entirely (not useful outside developer/debug use), then the
+JSON export button was dropped (seemed unused) but later restored once the actual
+use case came up — pasting exported JSON into an AI chat (ChatGPT/Claude.ai) to have
+it read the posts. What's left:
 - **Threadsデモ** (`tools/index.html`) — post creation, editing, tree replies,
-  delete, TL reset. No backup/export feature — clearing browser data loses
-  everything.
+  delete, TL reset, JSON export (backup / for pasting into an AI chat — not sync)
 - localStorage CRUD helpers in `tools/app.js` (single `tools_records` key; record
   shape: `id`/`type`/`title`/`content`/`data`/`created_at`/`updated_at`)
 
