@@ -152,22 +152,7 @@
   <main>
     <section class="panel">
       <h1>Threadsデモ</h1>
-
-      <div id="authLoggedOut">
-        <input id="email" type="email" placeholder="メールアドレス">
-        <div class="row">
-          <button id="loginBtn" class="primary">ログインリンクを送る</button>
-        </div>
-        <p class="muted">
-          Supabase AuthのMagic Linkを使用します。
-        </p>
-      </div>
-
-      <div id="authLoggedIn" class="hidden">
-        <div class="row">
-          <button id="logoutBtn" class="secondary">ログアウト</button>
-        </div>
-      </div>
+      <p class="muted">このブラウザ内にのみ保存されます（端末間の同期はありません）。</p>
     </section>
 
     <section class="panel">
@@ -194,21 +179,11 @@
 
   <script type="module">
     import {
-      supabase,
-      getCurrentUser,
-      signInWithEmail,
-      signOut,
       listRecords,
       createRecord,
       deleteRecord,
       downloadJson
     } from "./app.js";
-
-    const email = document.querySelector("#email");
-    const loginBtn = document.querySelector("#loginBtn");
-    const logoutBtn = document.querySelector("#logoutBtn");
-    const authLoggedOut = document.querySelector("#authLoggedOut");
-    const authLoggedIn = document.querySelector("#authLoggedIn");
 
     const postText = document.querySelector("#postText");
     const savePostBtn = document.querySelector("#savePostBtn");
@@ -236,21 +211,7 @@
       treeInputs.appendChild(wrap);
     }
 
-    async function refreshAuth() {
-      const user = await getCurrentUser().catch(() => null);
-      authLoggedOut.classList.toggle("hidden", !!user);
-      authLoggedIn.classList.toggle("hidden", !user);
-      return user;
-    }
-
     async function renderTimeline() {
-      const user = await refreshAuth();
-
-      if (!user) {
-        timeline.innerHTML = '<p class="muted">ログインすると保存済み投稿を表示できます。</p>';
-        return;
-      }
-
       const records = await listRecords("threads_post");
 
       if (!records.length) {
@@ -328,19 +289,6 @@
       }
     }
 
-    loginBtn.addEventListener("click", async () => {
-      const value = email.value.trim();
-      if (!value) return alert("メールアドレスを入力してください");
-
-      await signInWithEmail(value);
-      alert("ログイン用リンクを送信しました");
-    });
-
-    logoutBtn.addEventListener("click", async () => {
-      await signOut();
-      await renderTimeline();
-    });
-
     addTreeBtn.addEventListener("click", () => {
       addTreeInput();
     });
@@ -388,10 +336,6 @@
       }
 
       await renderTimeline();
-    });
-
-    supabase.auth.onAuthStateChange(() => {
-      renderTimeline();
     });
 
     renderTimeline();
