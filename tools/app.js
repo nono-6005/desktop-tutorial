@@ -53,24 +53,6 @@ export async function createRecord({
   return record;
 }
 
-export async function updateRecord(id, patch) {
-  const records = loadAll();
-  const index = records.findIndex(r => r.id === id);
-
-  if (index === -1) {
-    throw new Error("データが見つかりません");
-  }
-
-  records[index] = {
-    ...records[index],
-    ...patch,
-    updated_at: new Date().toISOString()
-  };
-
-  saveAll(records);
-  return records[index];
-}
-
 export async function deleteRecord(id) {
   const records = loadAll().filter(r => r.id !== id);
   saveAll(records);
@@ -88,21 +70,4 @@ export function downloadJson(filename, value) {
   a.download = filename;
   a.click();
   URL.revokeObjectURL(url);
-}
-
-export function readJsonFile(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-
-    reader.onload = () => {
-      try {
-        resolve(JSON.parse(reader.result));
-      } catch (error) {
-        reject(new Error("JSONの形式が不正です"));
-      }
-    };
-
-    reader.onerror = reject;
-    reader.readAsText(file, "utf-8");
-  });
 }
