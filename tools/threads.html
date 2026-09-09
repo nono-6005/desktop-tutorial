@@ -304,11 +304,16 @@
         .map(el => el.value.trim())
         .filter(Boolean);
 
-      await createRecord({
-        type: "threads_post",
-        content,
-        data: { tree }
-      });
+      try {
+        await createRecord({
+          type: "threads_post",
+          content,
+          data: { tree }
+        });
+      } catch (error) {
+        alert("投稿の保存に失敗しました: " + error.message);
+        return;
+      }
 
       postText.value = "";
       treeInputs.innerHTML = "";

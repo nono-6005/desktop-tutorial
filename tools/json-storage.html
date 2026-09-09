@@ -242,11 +242,16 @@
         return alert("JSONの形式が不正です");
       }
 
-      await createRecord({
-        type: "json_data",
-        title: title.value.trim(),
-        data: parsed
-      });
+      try {
+        await createRecord({
+          type: "json_data",
+          title: title.value.trim(),
+          data: parsed
+        });
+      } catch (error) {
+        alert("保存に失敗しました: " + error.message);
+        return;
+      }
 
       title.value = "";
       jsonInput.value = "";

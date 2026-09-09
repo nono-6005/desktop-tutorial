@@ -15,7 +15,10 @@ function saveAll(records) {
 }
 
 function generateId() {
-  return crypto.randomUUID();
+  if (window.crypto?.randomUUID) {
+    return crypto.randomUUID();
+  }
+  return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
 export async function listRecords(type = null) {
