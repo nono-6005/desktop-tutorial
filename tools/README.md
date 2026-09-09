@@ -19,6 +19,18 @@
 
 `app.js` に localStorage CRUDヘルパーをまとめている。ログイン不要。
 
+## 使い方（AIに投稿を読ませる）
+
+投稿データをChatGPTやClaude.aiなどのAIチャットに読ませたい場合：
+
+1. https://nono-6005.github.io/desktop-tutorial/tools/ を開く
+2. 「JSON書き出し（AI用）」ボタンをクリック
+3. `threads-backup.json` がダウンロードされる（スマホなら「ダウンロード」フォルダに入る）
+4. ダウンロードしたファイルを開き、中身のテキストを全部コピー
+5. ChatGPTやClaude.aiのチャット欄に貼り付けて質問する（例：「これは私の投稿記録です。要約して」）
+
+書き出されるJSONは投稿ごとに `content`（本文）・`data.tree`（ツリー返信）・`created_at`（投稿日時）などを含む配列。
+
 ## 制約
 
 - **端末間の同期はない。** PCで保存したデータはPCのブラウザにのみ残り、スマホには表示されない。
