@@ -244,6 +244,13 @@
       font-weight: 600; cursor: pointer; white-space: nowrap;
     }
 
+    .gate-row { display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; color: #e9e5ff; margin-bottom: 0.6rem; }
+    .gate-row input { accent-color: #a78bfa; width: 1.1rem; height: 1.1rem; }
+    .gate-meter { height: 8px; background: rgba(0,0,0,0.35); border-radius: 4px; overflow: hidden; }
+    .gate-bar { height: 100%; width: 0; background: #6b7280; transition: width 0.08s, background 0.1s; }
+    .gate-bar.open { background: #34d399; }
+    .gate-status { font-size: 0.75rem; color: #c4b5fd; margin: 0.35rem 0 0.8rem; }
+
     .note {
       font-size: 0.75rem;
       color: #9d94d6;
@@ -270,6 +277,9 @@
         <div class="card">
           <h2>録音</h2>
           <div class="rec-timer" id="recTimer">00:00</div>
+          <label class="gate-row"><input type="checkbox" id="gateToggle" checked> 声だけ録音（自動ノイズゲート）</label>
+          <div class="gate-meter"><div class="gate-bar" id="gateBar"></div></div>
+          <div class="gate-status" id="gateStatus">待機中</div>
           <button class="btn btn-rec" id="recBtn">
             <span id="recBtnLabel">🎤 録音開始</span>
           </button>
@@ -366,18 +376,115 @@
       return String(m).padStart(2, '0') + ':' + String(r).padStart(2, '0');
     }
 
+    // ===== 自動ノイズゲート（声帯域のみ検出し、環境ノイズに自動追従）=====
+    const GATE_WORKLET = `
+    class VoiceGate extends AudioWorkletProcessor {
+      constructor() {
+        super();
+        const sr = sampleRate;
+        this.aHp = Math.exp(-2 * Math.PI * 300 / sr);
+        this.aLp = Math.exp(-2 * Math.PI * 3400 / sr);
+        this.aDc = Math.exp(-2 * Math.PI * 100 / sr);
+        this.lpA = 0; this.lpB = 0; this.dc = 0;
+        this.env = 0; this.aEnv = Math.exp(-1 / (0.01 * sr));
+        this.floor = 0.01; this.t = 0; this.open = false; this.hold = 0; this.gain = 0;
+        this.aAtk = Math.exp(-1 / (0.005 * sr)); this.aRel = Math.exp(-1 / (0.08 * sr));
+        this.holdMax = Math.floor(0.4 * sr);
+        this.riseK = 1 - Math.exp(-1 / (3 * sr));
+        this.delay = new Float32Array(Math.floor(0.02 * sr)); this.di = 0;
+        this.n = 0;
+      }
+      process(inputs, outputs) {
+        const inp = inputs[0][0], out = outputs[0][0];
+        if (!inp) return true;
+        for (let i = 0; i < inp.length; i++) {
+          const x = inp[i];
+          this.dc = this.aDc * this.dc + (1 - this.aDc) * x;
+          const hx = x - this.dc;
+          this.lpA = this.aHp * this.lpA + (1 - this.aHp) * hx;
+          const bp = this.lpB = this.aLp * this.lpB + (1 - this.aLp) * (hx - this.lpA);
+          this.env = this.aEnv * this.env + (1 - this.aEnv) * bp * bp;
+          const e = Math.sqrt(this.env);
+          this.t++;
+          if (e < this.floor) this.floor += (e - this.floor) * 0.01;
+          else if (this.t < sampleRate || !this.open) this.floor += (e - this.floor) * this.riseK * (this.t < sampleRate ? 20 : 1);
+          if (this.floor < 0.0005) this.floor = 0.0005;
+          const openTh = Math.max(this.floor * 3, 0.006);
+          const closeTh = Math.max(this.floor * 2, 0.004);
+          if (this.t > sampleRate * 0.5) {
+            if (e > openTh) { this.open = true; this.hold = this.holdMax; }
+            else if (this.open && e > closeTh) { this.hold = this.holdMax; }
+            else if (this.open && --this.hold <= 0) this.open = false;
+          }
+          const target = this.open ? 1 : 0;
+          const a = target > this.gain ? this.aAtk : this.aRel;
+          this.gain = a * this.gain + (1 - a) * target;
+          const d = this.delay[this.di]; this.delay[this.di] = hx; this.di = (this.di + 1) % this.delay.length;
+          out[i] = d * this.gain;
+        }
+        if ((this.n += inp.length) >= sampleRate / 15) {
+          this.n = 0;
+          this.port.postMessage({ level: Math.sqrt(this.env), floor: this.floor, open: this.open, calibrating: this.t < sampleRate });
+        }
+        return true;
+      }
+    }
+    registerProcessor('voice-gate', VoiceGate);`;
+
+    let gateNode = null, gateSrc = null, gateDest = null;
+
+    async function setupGate(stream) {
+      const ctx = getCtx();
+      if (!ctx.audioWorklet) throw new Error('AudioWorklet非対応');
+      if (ctx.state === 'suspended') await ctx.resume();
+      if (!setupGate.loaded) {
+        const url = URL.createObjectURL(new Blob([GATE_WORKLET], { type: 'application/javascript' }));
+        await ctx.audioWorklet.addModule(url);
+        setupGate.loaded = true;
+      }
+      gateSrc = ctx.createMediaStreamSource(stream);
+      gateNode = new AudioWorkletNode(ctx, 'voice-gate', { numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [1] });
+      gateDest = ctx.createMediaStreamDestination();
+      gateSrc.connect(gateNode).connect(gateDest);
+      gateNode.port.onmessage = (e) => {
+        const m = e.data;
+        window.__gateState = m;
+        $('gateBar').style.width = Math.min(100, m.level * 600) + '%';
+        $('gateBar').classList.toggle('open', m.open);
+        $('gateStatus').textContent = m.calibrating ? '環境音を測定中…（まだ話さないでください）'
+          : m.open ? '🟢 声を記録中' : '⚪ 声以外をカット中';
+      };
+      return gateDest.stream;
+    }
+
+    function teardownGate() {
+      if (gateNode) { gateNode.port.onmessage = null; gateNode.disconnect(); gateNode = null; }
+      if (gateSrc) { gateSrc.disconnect(); gateSrc = null; }
+      gateDest = null;
+      $('gateBar').style.width = '0';
+      $('gateBar').classList.remove('open');
+      $('gateStatus').textContent = '待機中';
+    }
+
     // ===== 録音 =====
     async function startRecording() {
+      const useGate = $('gateToggle').checked;
+      let recStream;
       try {
-        mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        mediaStream = await navigator.mediaDevices.getUserMedia({
+          audio: useGate ? { noiseSuppression: true, echoCancellation: true, autoGainControl: false } : true,
+        });
+        recStream = useGate ? await setupGate(mediaStream) : mediaStream;
       } catch (err) {
+        teardownGate();
+        stopStream();
         showToast('マイクを使用できません: ' + (err && err.message ? err.message : err), 4000);
         return;
       }
       recordedChunks = [];
       let recorder;
       try {
-        recorder = new MediaRecorder(mediaStream);
+        recorder = new MediaRecorder(recStream);
       } catch (err) {
         showToast('録音を開始できませんでした: ' + err.message, 4000);
         stopStream();
@@ -410,6 +517,7 @@
     }
 
     function stopStream() {
+      teardownGate();
       if (mediaStream) {
         mediaStream.getTracks().forEach((t) => t.stop());
         mediaStream = null;

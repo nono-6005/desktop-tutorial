@@ -30,6 +30,7 @@ A PWA app for opening multiple SNS accounts with one click:
 
 A PWA app for recording and editing podcasts, fully local (no server, no data sent):
 - Multi-track microphone recording (Web Audio API; each recording becomes a track)
+- Auto noise gate ("声だけ録音", default ON, AudioWorklet): passes only voice-band (300–3400Hz) energy above an adaptively tracked noise floor, for outdoor/cycling use
 - Per-track volume, single-track preview, delete
 - Simultaneous mixdown playback (OfflineAudioContext)
 - Metadata (title / description / cover image)
