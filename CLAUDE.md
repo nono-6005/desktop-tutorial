@@ -130,7 +130,7 @@ See `.claude/skills/podcast-studio.md` for details.
 - `podcast-studio/manifest.json` - Podcast Studio PWA configuration (scope: `/podcast-studio/`)
 - `podcast-studio/sw.js` - Podcast Studio Service Worker
 - `screenshot-studio/index.html` - Screenshot Studio app (capture, gallery, IndexedDB)
-- `screenshot-studio/manifest.json` - Screenshot Studio PWA configuration (scope: `/screenshot-studio/`)
+- `screenshot-studio/manifest.json` - Screenshot Studio PWA configuration (scope: `./`, i.e. its own folder)
 - `screenshot-studio/sw.js` - Screenshot Studio Service Worker
 - `tools/index.html` - Threadsデモ app (localStorage-backed, no login/sync)
 - `tools/app.js` - localStorage CRUD helpers for tools/
@@ -149,7 +149,7 @@ app. Do not add a new app directly at the repo root — always give it its own f
 
 ## Technical Stack
 
-- **Frontend:** Vanilla JavaScript, HTML5, CSS3 (all three apps; build-free single-file)
+- **Frontend:** Vanilla JavaScript, HTML5, CSS3 (all apps; build-free single-file)
 - **Storage:** IndexedDB / localStorage (browser local storage)
 - **Deployment:** GitHub Pages
 - **PWA:** manifest.json + Service Worker

@@ -515,7 +515,7 @@
     <script>
     const DB_NAME = 'ScreenshotStudio', STORE = 'screenshots';
     const $ = (id) => document.getElementById(id);
-    let db, stream = null, video = null, currentPreview = null;
+    let db, stream = null, video = null, currentPreview = null, pipWin = null, busy = false;
 
     function openDB() {
         return new Promise((res, rej) => {
@@ -549,13 +549,15 @@
     }
 
     async function saveCanvas(canvas) {
+        if (!canvas.width || !canvas.height) throw new Error('画面を取得できませんでした。もう一度お試しください');
         const blob = await canvasToBlob(canvas);
+        if (!blob) throw new Error('画像の変換に失敗しました');
         const dataURL = await blobToDataURL(blob);
         const rec = { id: Date.now(), timestamp: new Date().toISOString(), imageData: dataURL, width: canvas.width, height: canvas.height, format: fmt() };
         await new Promise((res, rej) => {
             const tx = db.transaction([STORE], 'readwrite');
             tx.objectStore(STORE).add(rec);
-            tx.oncomplete = res; tx.onerror = () => rej(tx.error);
+            tx.oncomplete = res; tx.onerror = tx.onabort = () => rej(tx.error || new Error('保存に失敗しました（容量不足の可能性）'));
         });
         if ($('autoDownload').checked) downloadImage(rec.imageData, rec.id, rec.format);
         showStatus('保存しました（ギャラリーで確認できます）', 'success');
@@ -564,18 +566,24 @@
 
     async function startStream() {
         if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) throw new Error('このブラウザは画面キャプチャに対応していません（Chromeを使用してください）');
-        stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
-        video = document.createElement('video');
-        video.muted = true; video.playsInline = true; video.srcObject = stream;
-        await video.play();
-        await new Promise((r) => setTimeout(r, 150));
-        stream.getVideoTracks()[0].addEventListener('ended', stopStream);
+        const s = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
+        stream = s;
+        s.getVideoTracks()[0].addEventListener('ended', () => { if (stream === s) stopStream(); });
+        try {
+            video = document.createElement('video');
+            video.muted = true; video.playsInline = true; video.srcObject = s;
+            await video.play();
+            if (video.requestVideoFrameCallback) await new Promise((r) => video.requestVideoFrameCallback(() => r()));
+            else await new Promise((r) => setTimeout(r, 300));
+            if (stream !== s) throw new Error('共有が停止されました');
+        } catch (e) { stopStream(); throw e; }
         updateSessionUI();
     }
 
     function stopStream() {
         if (stream) stream.getTracks().forEach((t) => t.stop());
         stream = null; video = null;
+        if (pipWin) { try { pipWin.close(); } catch (e) {} pipWin = null; }
         updateSessionUI();
     }
 
@@ -593,6 +601,8 @@
     }
 
     async function capture(mode) {
+        if (busy) return;
+        busy = true;
         const oneShot = !stream;
         try {
             if (oneShot) await startStream();
@@ -603,7 +613,7 @@
             if (oneShot) stopStream();
             if (e && e.name === 'NotAllowedError') showStatus('キャンセルされました', 'error');
             else showStatus('撮影に失敗しました: ' + (e && e.message || e), 'error');
-        }
+        } finally { busy = false; }
     }
 
     function cropAndSave(frame) {
@@ -620,7 +630,7 @@
                 const b = cv.getBoundingClientRect();
                 return { x: Math.min(Math.max(e.clientX - b.left, 0), b.width), y: Math.min(Math.max(e.clientY - b.top, 0), b.height), b };
             };
-            const down = (e) => { start = pos(e); stage.setPointerCapture(e.pointerId); };
+            const down = (e) => { if (e.button !== 0) return; sel = null; ok.disabled = true; start = pos(e); stage.setPointerCapture(e.pointerId); };
             const move = (e) => {
                 if (!start) return;
                 const p = pos(e);
@@ -629,13 +639,16 @@
                 const k = frame.width / p.b.width;
                 sel = { x: x * k, y: y * k, w: w * k, h: h * k };
                 ok.disabled = !(w > 4 && h > 4);
+                if (ok.disabled) sel = null;
             };
             const up = () => { start = null; };
+            stage.addEventListener('pointercancel', up);
             const cleanup = () => {
                 modal.classList.remove('show');
                 stage.removeEventListener('pointerdown', down);
                 stage.removeEventListener('pointermove', move);
                 stage.removeEventListener('pointerup', up);
+                stage.removeEventListener('pointercancel', up);
                 ok.onclick = $('cropCancel').onclick = $('cropAll').onclick = null;
                 resolve();
             };
@@ -643,21 +656,24 @@
             stage.addEventListener('pointermove', move);
             stage.addEventListener('pointerup', up);
             $('cropCancel').onclick = cleanup;
-            $('cropAll').onclick = async () => { await saveCanvas(frame); cleanup(); };
+            $('cropAll').onclick = async () => { try { await saveCanvas(frame); } catch (e) { showStatus(e.message, 'error'); } cleanup(); };
             ok.onclick = async () => {
                 const out = document.createElement('canvas');
                 out.width = Math.round(sel.w); out.height = Math.round(sel.h);
                 out.getContext('2d').drawImage(frame, sel.x, sel.y, sel.w, sel.h, 0, 0, out.width, out.height);
-                await saveCanvas(out); cleanup();
+                try { await saveCanvas(out); } catch (e) { showStatus(e.message, 'error'); }
+                cleanup();
             };
         });
     }
 
     async function loadGallery() {
         const box = $('galleryContainer');
+        if (!db) return;
         const items = await new Promise((res) => {
             const r = db.transaction([STORE]).objectStore(STORE).index('timestamp').getAll();
             r.onsuccess = () => res(r.result.reverse());
+            r.onerror = () => res([]);
         });
         box.innerHTML = '';
         $('clearAllBtn').style.display = items.length ? 'block' : 'none';
@@ -710,17 +726,20 @@
     };
 
     async function openPip() {
+        if (!stream) { showStatus('先に「共有を開始」してからフローティングボタンを開いてください', 'error'); return; }
+        if (pipWin) return;
         const pip = await documentPictureInPicture.requestWindow({ width: 220, height: 90 });
+        pipWin = pip;
+        pip.addEventListener('pagehide', () => { if (pipWin === pip) pipWin = null; });
         const d = pip.document;
         d.body.style.cssText = 'margin:0;display:flex;gap:6px;padding:8px;font-family:sans-serif;background:#1f2937';
         [['全体', 'full'], ['領域', 'region']].forEach(([label, mode]) => {
             const b = d.createElement('button');
             b.textContent = '📸 ' + label;
             b.style.cssText = 'flex:1;padding:10px;font-size:14px;border:0;border-radius:6px;background:#2563eb;color:#fff;cursor:pointer';
-            b.onclick = () => { window.focus(); capture(mode); };
+            b.onclick = () => { if (stream) { window.focus(); capture(mode); } };
             d.body.appendChild(b);
         });
-        if (!stream) { try { await startStream(); } catch (e) { pip.close(); showStatus('共有が開始できませんでした', 'error'); } }
     }
 
     $('fullBtn').onclick = () => capture('full');
@@ -738,7 +757,10 @@
     document.addEventListener('keydown', (e) => {
         if (e.altKey && !e.ctrlKey && !e.metaKey && e.code === 'KeyS') { e.preventDefault(); capture('full'); }
         else if (e.altKey && !e.ctrlKey && !e.metaKey && e.code === 'KeyR') { e.preventDefault(); capture('region'); }
-        else if (e.key === 'Escape') { $('cropCancel').click(); $('previewModal').classList.remove('show'); }
+        else if (e.key === 'Escape') {
+            if ($('cropModal').classList.contains('show')) $('cropCancel').click();
+            else $('previewModal').classList.remove('show');
+        }
     });
 
     $('qualitySlider').oninput = (e) => { $('qualityValue').textContent = '品質: ' + Math.round(e.target.value * 100) + '%'; };

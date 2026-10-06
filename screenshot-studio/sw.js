@@ -49,16 +49,14 @@ self.addEventListener('fetch', (event) => {
 
         // Cache valid responses
         if (response && response.status === 200) {
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, cloned);
-          });
+          event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.put(event.request, cloned)));
         }
 
         return response;
       })
       .catch(() => {
         // Fallback to cache
-        return caches.match(event.request);
+        return caches.match(event.request, { ignoreSearch: true }).then((r) => r || caches.match('./index.html'));
       })
   );
 });
