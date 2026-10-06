@@ -1,8 +1,8 @@
-const CACHE_NAME = 'screenshot-studio-v1';
+const CACHE_NAME = 'screenshot-studio-v2';
 const ASSETS = [
-  '/desktop-tutorial/screenshot-studio/',
-  '/desktop-tutorial/screenshot-studio/index.html',
-  '/desktop-tutorial/screenshot-studio/manifest.json',
+  './',
+  './index.html',
+  './manifest.json',
 ];
 
 // Install event
@@ -37,7 +37,7 @@ self.addEventListener('fetch', (event) => {
   }
 
   // Skip external requests
-  if (!event.request.url.includes('/desktop-tutorial/screenshot-studio/')) {
+  if (!event.request.url.startsWith(self.registration.scope)) {
     return;
   }
 

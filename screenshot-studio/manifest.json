@@ -2,8 +2,8 @@
   "name": "Screenshot Studio",
   "short_name": "Screenshots",
   "description": "ブラウザ内でスクリーンショットを撮影・編集・保存するPWAアプリ",
-  "start_url": "/desktop-tutorial/screenshot-studio/",
-  "scope": "/desktop-tutorial/screenshot-studio/",
+  "start_url": "./index.html",
+  "scope": "./",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#2563eb",
@@ -44,7 +44,7 @@
       "name": "全画面撮影",
       "short_name": "撮影",
       "description": "すぐにスクリーンショットを撮影",
-      "url": "/desktop-tutorial/screenshot-studio/?action=fullscreen",
+      "url": "./index.html",
       "icons": [
         {
           "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect fill='%232563eb' width='192' height='192'/><text x='50%' y='50%' font-size='80' fill='white' text-anchor='middle' dominant-baseline='central'>📸</text></svg>",

@@ -49,15 +49,13 @@ stays on-device. Do not reintroduce client-side API-key calls here.
 
 ### screenshot-studio (Screenshot Studio)
 
-A PWA app for capturing and managing browser screenshots:
-- Full screen capture
-- Region selection mode
-- Save screenshots to browser (IndexedDB)
-- View saved screenshots in gallery
-- Download screenshots as PNG/JPEG/WebP
-- Adjustable quality settings
-- Offline support via Service Worker
-- PWA installation on mobile/desktop
+A PWA app for capturing screens/windows/tabs (Chrome `getDisplayMedia`):
+- Capture target picked in Chrome's share dialog (entire screen, other apps' windows, or tabs)
+- Full capture or drag-to-select region crop
+- "共有を開始" keeps the share alive for repeated captures; floating capture buttons via Document Picture-in-Picture (Chrome 116+)
+- In-app shortcuts only (Alt+S full / Alt+R region) — a web app cannot register OS-wide global hotkeys
+- Saves to IndexedDB, gallery, PNG/JPEG/WebP download
+- Offline support via Service Worker, PWA installation
 
 **Live:** https://nono-6005.github.io/desktop-tutorial/screenshot-studio/
 

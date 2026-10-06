@@ -413,6 +413,13 @@
             border-color: var(--primary);
             box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.1);
         }
+    <style>
+        .crop-stage { position: relative; display: inline-block; touch-action: none; cursor: crosshair; line-height: 0; }
+        .crop-stage canvas { max-width: 86vw; max-height: 66vh; display: block; }
+        .crop-rect { position: absolute; border: 2px solid var(--primary); background: rgba(37,99,235,.15); pointer-events: none; display: none; }
+        .kbd { font-family: monospace; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 4px; padding: 1px 6px; }
+        .live-dot { display: none; color: var(--danger); font-size: 13px; font-weight: 600; }
+        .live-dot.on { display: inline; }
     </style>
 </head>
 <body>
@@ -420,6 +427,7 @@
         <header>
             <span style="font-size: 32px;">📸</span>
             <h1>Screenshot Studio</h1>
+            <span class="live-dot" id="liveDot">● 共有中</span>
         </header>
 
         <div class="tabs">
@@ -428,96 +436,72 @@
             <button class="tab-btn" data-tab="settings">設定</button>
         </div>
 
-        <!-- Capture Tab -->
         <div id="capture" class="tab-content active">
             <div class="capture-section">
                 <div class="status" id="status"></div>
-
                 <div class="controls">
-                    <button class="btn btn-primary" id="fullscreenBtn">
-                        <span>🖥️</span> 全画面撮影
-                    </button>
-                    <button class="btn btn-primary" id="selectionBtn">
-                        <span>🎯</span> 領域選択
-                    </button>
-                    <button class="btn btn-secondary" id="clipboardBtn">
-                        <span>📋</span> クリップボード
-                    </button>
+                    <button class="btn btn-primary" id="fullBtn">🖥️ 全体を撮影</button>
+                    <button class="btn btn-primary" id="regionBtn">🎯 領域を選んで撮影</button>
+                    <button class="btn btn-secondary" id="sessionBtn">▶ 共有を開始（連続撮影）</button>
+                    <button class="btn btn-secondary" id="pipBtn" style="display:none;">🪟 フローティング撮影ボタン</button>
                 </div>
-
-                <div class="info-text" id="captureInfo">
-                    クリックしてスクリーンショットを撮影します。撮影した画像はブラウザに自動保存されます。
+                <div class="info-text">
+                    押すとChromeの共有ダイアログが開き、<b>画面全体・ウィンドウ・タブ</b>から撮影対象を選べます（他のブラウザやアプリも選べます）。<br>
+                    「共有を開始」すると共有を維持し、何度でも即撮影できます。フローティングボタンは別ウィンドウの上に常に表示されるので、他のアプリを見ながらワンクリックで撮影できます。<br>
+                    ショートカット（このアプリにフォーカス中）: <span class="kbd">Alt+S</span> 全体 / <span class="kbd">Alt+R</span> 領域 / <span class="kbd">Esc</span> 取消<br>
+                    撮影した画像はこの端末のブラウザ（IndexedDB）にだけ保存され、外部へは送信されません。
                 </div>
             </div>
         </div>
 
-        <!-- Gallery Tab -->
         <div id="gallery" class="tab-content">
             <div class="capture-section">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
                     <h2 style="font-size: 18px;">保存済みスクリーンショット</h2>
-                    <button class="btn btn-danger" id="clearAllBtn" style="display: none;">
-                        すべて削除
-                    </button>
+                    <button class="btn btn-danger" id="clearAllBtn" style="display: none;">すべて削除</button>
                 </div>
-                <div id="galleryContainer" class="gallery">
-                    <div class="empty-state">
-                        <div class="empty-state-icon">📸</div>
-                        <p>まだスクリーンショットはありません</p>
-                    </div>
-                </div>
+                <div id="galleryContainer" class="gallery"></div>
             </div>
         </div>
 
-        <!-- Settings Tab -->
         <div id="settings" class="tab-content">
             <div class="capture-section">
                 <h2 style="font-size: 18px; margin-bottom: 16px;">設定</h2>
-
-                <div class="setting-group">
-                    <label class="setting-label">画像品質</label>
-                    <input type="range" id="qualitySlider" class="setting-input" min="0.5" max="1" step="0.1" value="0.95" style="padding: 0;">
-                    <div class="info-text" id="qualityValue">品質: 95%</div>
-                </div>
-
                 <div class="setting-group">
                     <label class="setting-label">保存形式</label>
                     <select id="formatSelect" class="setting-select">
                         <option value="png">PNG（ロスレス、推奨）</option>
                         <option value="jpeg">JPEG（軽量）</option>
-                        <option value="webp">WebP（モダン形式）</option>
+                        <option value="webp">WebP</option>
                     </select>
                 </div>
-
                 <div class="setting-group">
-                    <label class="setting-label">クリップボード撮影範囲</label>
-                    <select id="clipboardSourceSelect" class="setting-select">
-                        <option value="viewport">現在のビューポート</option>
-                        <option value="fullpage">ページ全体</option>
-                    </select>
+                    <label class="setting-label">画質（JPEG / WebP のみ）</label>
+                    <input type="range" id="qualitySlider" class="setting-input" min="0.5" max="1" step="0.05" value="0.92" style="padding: 0;">
+                    <div class="info-text" id="qualityValue">品質: 92%</div>
                 </div>
-
                 <div class="setting-group">
-                    <button class="btn btn-primary" id="testCaptureBtn">
-                        テスト撮影
-                    </button>
-                </div>
-
-                <div class="info-text" style="margin-top: 24px;">
-                    <strong>情報:</strong><br>
-                    すべてのスクリーンショットはブラウザのローカルストレージ（IndexedDB）に保存されます。<br>
-                    データはあなたのデバイス内にのみ保存され、外部サーバーに送信されることはありません。
+                    <label style="font-size:14px;"><input type="checkbox" id="autoDownload"> 撮影と同時にダウンロードもする</label>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Selection Overlay -->
-    <div id="selectionOverlay" class="selection-overlay"></div>
-    <div id="selectionBox" class="selection-box"></div>
-    <div id="tooltip" class="tooltip"></div>
+    <div id="cropModal" class="modal">
+        <div class="modal-content">
+            <div>ドラッグして撮影する範囲を選んでください</div>
+            <div class="crop-stage" id="cropStage">
+                <canvas id="cropCanvas"></canvas>
+                <div class="crop-rect" id="cropRect"></div>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" id="cropCancel">キャンセル</button>
+                <button class="btn btn-secondary" id="cropAll">全体を保存</button>
+                <button class="btn btn-primary" id="cropOk" disabled>この範囲を保存</button>
+            </div>
+        </div>
+    </div>
 
-    <!-- Image Preview Modal -->
     <div id="previewModal" class="modal">
         <div class="modal-content">
             <img id="previewImage" class="modal-image" alt="プレビュー">
@@ -529,336 +513,249 @@
     </div>
 
     <script>
-        // IndexedDB Setup
-        const DB_NAME = 'ScreenshotStudio';
-        const STORE_NAME = 'screenshots';
+    const DB_NAME = 'ScreenshotStudio', STORE = 'screenshots';
+    const $ = (id) => document.getElementById(id);
+    let db, stream = null, video = null, currentPreview = null;
 
-        let db;
-        let currentImage = null;
-        let isSelecting = false;
-        let selectionStart = null;
+    function openDB() {
+        return new Promise((res, rej) => {
+            const r = indexedDB.open(DB_NAME, 1);
+            r.onupgradeneeded = (e) => {
+                const s = e.target.result.createObjectStore(STORE, { keyPath: 'id' });
+                s.createIndex('timestamp', 'timestamp');
+            };
+            r.onsuccess = () => { db = r.result; res(); };
+            r.onerror = () => rej(r.error);
+        });
+    }
 
-        async function initDB() {
-            return new Promise((resolve, reject) => {
-                const request = indexedDB.open(DB_NAME, 1);
-                request.onerror = () => reject(request.error);
-                request.onsuccess = () => {
-                    db = request.result;
-                    resolve();
-                };
-                request.onupgradeneeded = (e) => {
-                    const store = e.target.result.createObjectStore(STORE_NAME, { keyPath: 'id', autoIncrement: true });
-                    store.createIndex('timestamp', 'timestamp', { unique: false });
-                };
+    function showStatus(msg, type) {
+        const el = $('status');
+        el.textContent = msg;
+        el.className = 'status show ' + (type || '');
+        clearTimeout(showStatus.t);
+        showStatus.t = setTimeout(() => el.classList.remove('show'), 3500);
+    }
+
+    function fmt() { return $('formatSelect').value; }
+    function quality() { return parseFloat($('qualitySlider').value); }
+
+    function canvasToBlob(canvas) {
+        return new Promise((res) => canvas.toBlob(res, 'image/' + fmt(), quality()));
+    }
+
+    function blobToDataURL(blob) {
+        return new Promise((res) => { const r = new FileReader(); r.onload = () => res(r.result); r.readAsDataURL(blob); });
+    }
+
+    async function saveCanvas(canvas) {
+        const blob = await canvasToBlob(canvas);
+        const dataURL = await blobToDataURL(blob);
+        const rec = { id: Date.now(), timestamp: new Date().toISOString(), imageData: dataURL, width: canvas.width, height: canvas.height, format: fmt() };
+        await new Promise((res, rej) => {
+            const tx = db.transaction([STORE], 'readwrite');
+            tx.objectStore(STORE).add(rec);
+            tx.oncomplete = res; tx.onerror = () => rej(tx.error);
+        });
+        if ($('autoDownload').checked) downloadImage(rec.imageData, rec.id, rec.format);
+        showStatus('保存しました（ギャラリーで確認できます）', 'success');
+        loadGallery();
+    }
+
+    async function startStream() {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) throw new Error('このブラウザは画面キャプチャに対応していません（Chromeを使用してください）');
+        stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
+        video = document.createElement('video');
+        video.muted = true; video.playsInline = true; video.srcObject = stream;
+        await video.play();
+        await new Promise((r) => setTimeout(r, 150));
+        stream.getVideoTracks()[0].addEventListener('ended', stopStream);
+        updateSessionUI();
+    }
+
+    function stopStream() {
+        if (stream) stream.getTracks().forEach((t) => t.stop());
+        stream = null; video = null;
+        updateSessionUI();
+    }
+
+    function updateSessionUI() {
+        const on = !!stream;
+        $('sessionBtn').textContent = on ? '■ 共有を停止' : '▶ 共有を開始（連続撮影）';
+        $('liveDot').classList.toggle('on', on);
+    }
+
+    function grabFrame() {
+        const c = document.createElement('canvas');
+        c.width = video.videoWidth; c.height = video.videoHeight;
+        c.getContext('2d').drawImage(video, 0, 0);
+        return c;
+    }
+
+    async function capture(mode) {
+        const oneShot = !stream;
+        try {
+            if (oneShot) await startStream();
+            const frame = grabFrame();
+            if (oneShot) stopStream();
+            if (mode === 'region') await cropAndSave(frame); else await saveCanvas(frame);
+        } catch (e) {
+            if (oneShot) stopStream();
+            if (e && e.name === 'NotAllowedError') showStatus('キャンセルされました', 'error');
+            else showStatus('撮影に失敗しました: ' + (e && e.message || e), 'error');
+        }
+    }
+
+    function cropAndSave(frame) {
+        return new Promise((resolve) => {
+            const modal = $('cropModal'), cv = $('cropCanvas'), rect = $('cropRect'), stage = $('cropStage');
+            cv.width = frame.width; cv.height = frame.height;
+            cv.getContext('2d').drawImage(frame, 0, 0);
+            modal.classList.add('show');
+            let sel = null, start = null;
+            const ok = $('cropOk');
+            ok.disabled = true; rect.style.display = 'none';
+
+            const pos = (e) => {
+                const b = cv.getBoundingClientRect();
+                return { x: Math.min(Math.max(e.clientX - b.left, 0), b.width), y: Math.min(Math.max(e.clientY - b.top, 0), b.height), b };
+            };
+            const down = (e) => { start = pos(e); stage.setPointerCapture(e.pointerId); };
+            const move = (e) => {
+                if (!start) return;
+                const p = pos(e);
+                const x = Math.min(start.x, p.x), y = Math.min(start.y, p.y), w = Math.abs(p.x - start.x), h = Math.abs(p.y - start.y);
+                Object.assign(rect.style, { display: 'block', left: x + 'px', top: y + 'px', width: w + 'px', height: h + 'px' });
+                const k = frame.width / p.b.width;
+                sel = { x: x * k, y: y * k, w: w * k, h: h * k };
+                ok.disabled = !(w > 4 && h > 4);
+            };
+            const up = () => { start = null; };
+            const cleanup = () => {
+                modal.classList.remove('show');
+                stage.removeEventListener('pointerdown', down);
+                stage.removeEventListener('pointermove', move);
+                stage.removeEventListener('pointerup', up);
+                ok.onclick = $('cropCancel').onclick = $('cropAll').onclick = null;
+                resolve();
+            };
+            stage.addEventListener('pointerdown', down);
+            stage.addEventListener('pointermove', move);
+            stage.addEventListener('pointerup', up);
+            $('cropCancel').onclick = cleanup;
+            $('cropAll').onclick = async () => { await saveCanvas(frame); cleanup(); };
+            ok.onclick = async () => {
+                const out = document.createElement('canvas');
+                out.width = Math.round(sel.w); out.height = Math.round(sel.h);
+                out.getContext('2d').drawImage(frame, sel.x, sel.y, sel.w, sel.h, 0, 0, out.width, out.height);
+                await saveCanvas(out); cleanup();
+            };
+        });
+    }
+
+    async function loadGallery() {
+        const box = $('galleryContainer');
+        const items = await new Promise((res) => {
+            const r = db.transaction([STORE]).objectStore(STORE).index('timestamp').getAll();
+            r.onsuccess = () => res(r.result.reverse());
+        });
+        box.innerHTML = '';
+        $('clearAllBtn').style.display = items.length ? 'block' : 'none';
+        if (!items.length) {
+            box.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📸</div><p>まだスクリーンショットはありません</p></div>';
+            return;
+        }
+        for (const it of items) {
+            const el = document.createElement('div');
+            el.className = 'gallery-item';
+            const img = document.createElement('img');
+            img.src = it.imageData; img.alt = 'Screenshot';
+            const actions = document.createElement('div');
+            actions.className = 'gallery-item-actions';
+            [['👁️', 'プレビュー', () => showPreview(it)], ['⬇️', 'ダウンロード', () => downloadImage(it.imageData, it.id, it.format)], ['🗑️', '削除', () => deleteShot(it.id)]].forEach(([t, title, fn]) => {
+                const b = document.createElement('button');
+                b.className = 'gallery-item-btn'; b.textContent = t; b.title = title; b.onclick = fn;
+                actions.appendChild(b);
             });
+            el.append(img, actions);
+            box.appendChild(el);
         }
+    }
 
-        async function saveScreenshot(blob, metadata = {}) {
-            const canvas = document.createElement('canvas');
-            canvas.width = 1;
-            canvas.height = 1;
-            const ctx = canvas.getContext('2d');
-            const img = new Image();
+    function showPreview(it) {
+        currentPreview = it;
+        $('previewImage').src = it.imageData;
+        $('previewModal').classList.add('show');
+    }
 
-            return new Promise((resolve) => {
-                const reader = new FileReader();
-                reader.onload = async (e) => {
-                    const data = {
-                        id: Date.now(),
-                        timestamp: new Date().toISOString(),
-                        imageData: e.target.result,
-                        width: metadata.width || 0,
-                        height: metadata.height || 0,
-                        format: metadata.format || 'png'
-                    };
+    function downloadImage(data, id, format) {
+        const a = document.createElement('a');
+        a.href = data;
+        a.download = 'screenshot-' + new Date(id).toISOString().replace(/[:.]/g, '-').slice(0, 19) + '.' + (format === 'jpeg' ? 'jpg' : format);
+        a.click();
+    }
 
-                    const transaction = db.transaction([STORE_NAME], 'readwrite');
-                    const store = transaction.objectStore(STORE_NAME);
-                    const request = store.add(data);
+    function deleteShot(id) {
+        if (!confirm('このスクリーンショットを削除しますか？')) return;
+        const tx = db.transaction([STORE], 'readwrite');
+        tx.objectStore(STORE).delete(id);
+        tx.oncomplete = loadGallery;
+    }
 
-                    request.onsuccess = () => {
-                        showStatus(`スクリーンショットを保存しました`, 'success');
-                        resolve(data.id);
-                    };
-                    request.onerror = () => showStatus('保存に失敗しました', 'error');
-                };
-                reader.readAsDataURL(blob);
-            });
-        }
+    $('clearAllBtn').onclick = () => {
+        if (!confirm('すべてのスクリーンショットを削除しますか？')) return;
+        const tx = db.transaction([STORE], 'readwrite');
+        tx.objectStore(STORE).clear();
+        tx.oncomplete = loadGallery;
+    };
 
-        async function loadGallery() {
-            const container = document.getElementById('galleryContainer');
-            container.innerHTML = '';
-
-            return new Promise((resolve) => {
-                const transaction = db.transaction([STORE_NAME], 'readonly');
-                const store = transaction.objectStore(STORE_NAME);
-                const index = store.index('timestamp');
-                const request = index.getAll();
-
-                request.onsuccess = () => {
-                    const items = request.result.reverse();
-
-                    if (items.length === 0) {
-                        container.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📸</div><p>まだスクリーンショットはありません</p></div>';
-                        document.getElementById('clearAllBtn').style.display = 'none';
-                        resolve();
-                        return;
-                    }
-
-                    document.getElementById('clearAllBtn').style.display = 'block';
-
-                    items.forEach(item => {
-                        const element = document.createElement('div');
-                        element.className = 'gallery-item';
-                        element.innerHTML = `
-                            <img src="${item.imageData}" alt="Screenshot">
-                            <div class="gallery-item-actions">
-                                <button class="gallery-item-btn" title="プレビュー">👁️</button>
-                                <button class="gallery-item-btn" title="ダウンロード">⬇️</button>
-                                <button class="gallery-item-btn" title="削除">🗑️</button>
-                            </div>
-                        `;
-
-                        const buttons = element.querySelectorAll('.gallery-item-btn');
-                        buttons[0].onclick = () => showPreview(item.imageData);
-                        buttons[1].onclick = () => downloadImage(item.imageData, item.id, item.format);
-                        buttons[2].onclick = () => deleteScreenshot(item.id);
-
-                        container.appendChild(element);
-                    });
-                    resolve();
-                };
-            });
-        }
-
-        async function deleteScreenshot(id) {
-            if (!confirm('このスクリーンショットを削除しますか？')) return;
-
-            return new Promise((resolve) => {
-                const transaction = db.transaction([STORE_NAME], 'readwrite');
-                const store = transaction.objectStore(STORE_NAME);
-                const request = store.delete(id);
-
-                request.onsuccess = () => {
-                    loadGallery();
-                    showStatus('削除しました', 'success');
-                    resolve();
-                };
-            });
-        }
-
-        async function clearAllScreenshots() {
-            if (!confirm('すべてのスクリーンショットを削除しますか？')) return;
-
-            return new Promise((resolve) => {
-                const transaction = db.transaction([STORE_NAME], 'readwrite');
-                const store = transaction.objectStore(STORE_NAME);
-                const request = store.clear();
-
-                request.onsuccess = () => {
-                    loadGallery();
-                    showStatus('すべてのスクリーンショットを削除しました', 'success');
-                    resolve();
-                };
-            });
-        }
-
-        function showStatus(message, type) {
-            const el = document.getElementById('status');
-            el.textContent = message;
-            el.className = `status show ${type}`;
-            setTimeout(() => el.classList.remove('show'), 3000);
-        }
-
-        function showPreview(imageData) {
-            document.getElementById('previewImage').src = imageData;
-            document.getElementById('previewModal').classList.add('show');
-            currentImage = imageData;
-        }
-
-        function downloadImage(imageData, id, format) {
-            const link = document.createElement('a');
-            link.href = imageData;
-            const date = new Date(id).toISOString().replace(/[:.]/g, '-').slice(0, -5);
-            link.download = `screenshot-${date}.${format}`;
-            link.click();
-            showStatus('ダウンロードしました', 'success');
-        }
-
-        async function captureFullscreen() {
-            try {
-                const format = document.getElementById('formatSelect').value;
-                const quality = parseFloat(document.getElementById('qualitySlider').value);
-
-                showStatus('撮影中...', '');
-
-                const canvas = await html5QrCode.scannerPlaceholder();
-                const canvases = document.querySelectorAll('canvas');
-                if (canvases.length > 0) {
-                    const ctx = canvases[0].getContext('2d');
-                }
-
-                // Use html2canvas polyfill approach
-                const screenshotCanvas = await captureVisibleTab();
-                screenshotCanvas.toBlob(async (blob) => {
-                    await saveScreenshot(blob, { format, width: screenshotCanvas.width, height: screenshotCanvas.height });
-                    await loadGallery();
-                }, `image/${format}`, quality);
-            } catch (error) {
-                showStatus('撮影に失敗しました: ' + error.message, 'error');
-            }
-        }
-
-        async function captureVisibleTab() {
-            // Fallback implementation using canvas
-            const canvas = document.createElement('canvas');
-            canvas.width = window.innerWidth * window.devicePixelRatio;
-            canvas.height = window.innerHeight * window.devicePixelRatio;
-
-            const ctx = canvas.getContext('2d');
-            ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
-
-            // Simple implementation: capture the visible viewport
-            return canvas;
-        }
-
-        function startSelection() {
-            isSelecting = true;
-            document.getElementById('selectionOverlay').classList.add('active');
-            selectionStart = null;
-        }
-
-        function stopSelection() {
-            isSelecting = false;
-            document.getElementById('selectionOverlay').classList.remove('active');
-            document.getElementById('selectionBox').classList.remove('active');
-        }
-
-        // Tab Navigation
-        document.querySelectorAll('.tab-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-                document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-
-                btn.classList.add('active');
-                const tabId = btn.dataset.tab;
-                document.getElementById(tabId).classList.add('active');
-
-                if (tabId === 'gallery') {
-                    loadGallery();
-                }
-            });
+    async function openPip() {
+        const pip = await documentPictureInPicture.requestWindow({ width: 220, height: 90 });
+        const d = pip.document;
+        d.body.style.cssText = 'margin:0;display:flex;gap:6px;padding:8px;font-family:sans-serif;background:#1f2937';
+        [['全体', 'full'], ['領域', 'region']].forEach(([label, mode]) => {
+            const b = d.createElement('button');
+            b.textContent = '📸 ' + label;
+            b.style.cssText = 'flex:1;padding:10px;font-size:14px;border:0;border-radius:6px;background:#2563eb;color:#fff;cursor:pointer';
+            b.onclick = () => { window.focus(); capture(mode); };
+            d.body.appendChild(b);
         });
+        if (!stream) { try { await startStream(); } catch (e) { pip.close(); showStatus('共有が開始できませんでした', 'error'); } }
+    }
 
-        // Button Events
-        document.getElementById('fullscreenBtn').addEventListener('click', async () => {
-            showStatus('取得中...', '');
-            try {
-                const format = document.getElementById('formatSelect').value;
-                const quality = parseFloat(document.getElementById('qualitySlider').value);
+    $('fullBtn').onclick = () => capture('full');
+    $('regionBtn').onclick = () => capture('region');
+    $('sessionBtn').onclick = async () => {
+        if (stream) return stopStream();
+        try { await startStream(); showStatus('共有を開始しました。撮影ボタンで即撮影できます', 'success'); }
+        catch (e) { showStatus('共有が開始できませんでした', 'error'); }
+    };
+    if ('documentPictureInPicture' in window) {
+        $('pipBtn').style.display = '';
+        $('pipBtn').onclick = () => openPip().catch((e) => showStatus('フローティング表示に失敗: ' + e.message, 'error'));
+    }
 
-                // Use html2canvas or getDisplayMedia approach
-                const canvas = document.createElement('canvas');
-                canvas.width = document.documentElement.scrollWidth || window.innerWidth;
-                canvas.height = document.documentElement.scrollHeight || window.innerHeight;
+    document.addEventListener('keydown', (e) => {
+        if (e.altKey && !e.ctrlKey && !e.metaKey && e.code === 'KeyS') { e.preventDefault(); capture('full'); }
+        else if (e.altKey && !e.ctrlKey && !e.metaKey && e.code === 'KeyR') { e.preventDefault(); capture('region'); }
+        else if (e.key === 'Escape') { $('cropCancel').click(); $('previewModal').classList.remove('show'); }
+    });
 
-                const ctx = canvas.getContext('2d');
-                ctx.fillStyle = '#ffffff';
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
+    $('qualitySlider').oninput = (e) => { $('qualityValue').textContent = '品質: ' + Math.round(e.target.value * 100) + '%'; };
+    $('closePreviewBtn').onclick = () => $('previewModal').classList.remove('show');
+    $('downloadPreviewBtn').onclick = () => currentPreview && downloadImage(currentPreview.imageData, currentPreview.id, currentPreview.format);
 
-                // Create a more realistic capture
-                const clonedBody = document.body.cloneNode(true);
-                const tempContainer = document.createElement('div');
-                tempContainer.appendChild(clonedBody);
+    document.querySelectorAll('.tab-btn').forEach((btn) => btn.addEventListener('click', () => {
+        document.querySelectorAll('.tab-btn').forEach((b) => b.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach((t) => t.classList.remove('active'));
+        btn.classList.add('active');
+        $(btn.dataset.tab).classList.add('active');
+        if (btn.dataset.tab === 'gallery') loadGallery();
+    }));
 
-                canvas.toBlob(async (blob) => {
-                    await saveScreenshot(blob, { format, width: canvas.width, height: canvas.height });
-                }, `image/${format}`, quality);
-            } catch (error) {
-                showStatus('エラー: ' + error.message, 'error');
-            }
-        });
+    openDB().then(loadGallery).catch((e) => showStatus('保存領域を開けません: ' + e.message, 'error'));
 
-        document.getElementById('selectionBtn').addEventListener('click', () => {
-            showStatus('矩形をドラッグして領域を選択してください', '');
-            startSelection();
-        });
-
-        document.getElementById('clipboardBtn').addEventListener('click', async () => {
-            try {
-                const format = document.getElementById('formatSelect').value;
-                const quality = parseFloat(document.getElementById('qualitySlider').value);
-
-                showStatus('取得中...', '');
-
-                const canvas = document.createElement('canvas');
-                canvas.width = window.innerWidth;
-                canvas.height = window.innerHeight;
-
-                canvas.toBlob(async (blob) => {
-                    await saveScreenshot(blob, { format, width: canvas.width, height: canvas.height });
-                }, `image/${format}`, quality);
-            } catch (error) {
-                showStatus('エラー: ' + error.message, 'error');
-            }
-        });
-
-        document.getElementById('clearAllBtn').addEventListener('click', clearAllScreenshots);
-
-        document.getElementById('testCaptureBtn').addEventListener('click', async () => {
-            const canvas = document.createElement('canvas');
-            canvas.width = 400;
-            canvas.height = 300;
-            const ctx = canvas.getContext('2d');
-            ctx.fillStyle = '#2563eb';
-            ctx.fillRect(0, 0, 400, 300);
-            ctx.fillStyle = 'white';
-            ctx.font = '24px sans-serif';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText('テスト撮影: ' + new Date().toLocaleTimeString('ja-JP'), 200, 150);
-
-            canvas.toBlob(async (blob) => {
-                await saveScreenshot(blob, { format: 'png', width: 400, height: 300 });
-                await loadGallery();
-            }, 'image/png');
-        });
-
-        // Quality slider
-        document.getElementById('qualitySlider').addEventListener('input', (e) => {
-            const value = Math.round(parseFloat(e.target.value) * 100);
-            document.getElementById('qualityValue').textContent = `品質: ${value}%`;
-        });
-
-        // Modal
-        document.getElementById('closePreviewBtn').addEventListener('click', () => {
-            document.getElementById('previewModal').classList.remove('show');
-        });
-
-        document.getElementById('downloadPreviewBtn').addEventListener('click', () => {
-            if (currentImage) {
-                const link = document.createElement('a');
-                link.href = currentImage;
-                link.download = `screenshot-${Date.now()}.png`;
-                link.click();
-            }
-        });
-
-        // Selection overlay events
-        document.getElementById('selectionOverlay').addEventListener('click', () => {
-            stopSelection();
-        });
-
-        // Initialize
-        initDB().then(() => {
-            loadGallery();
-        }).catch(e => console.error('DB initialization failed:', e));
-
-        // Service Worker
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('sw.js').catch(e => console.log('SW registration failed:', e));
-        }
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
     </script>
 </body>
 </html>
