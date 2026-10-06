@@ -47,6 +47,23 @@ no backend) an API key can't be kept secret and would let anyone run up charges 
 account. This app therefore makes **no external network requests at all** — everything
 stays on-device. Do not reintroduce client-side API-key calls here.
 
+### screenshot-studio (Screenshot Studio)
+
+A PWA app for capturing and managing browser screenshots:
+- Full screen capture
+- Region selection mode
+- Save screenshots to browser (IndexedDB)
+- View saved screenshots in gallery
+- Download screenshots as PNG/JPEG/WebP
+- Adjustable quality settings
+- Offline support via Service Worker
+- PWA installation on mobile/desktop
+
+**Live:** https://nono-6005.github.io/desktop-tutorial/screenshot-studio/
+
+Like memo and sns-launcher, this is a build-free single `index.html` with vanilla JS.
+All screenshot data is stored locally in IndexedDB on your device — no external uploads.
+
 ### tools (Threadsデモ)
 
 A build-free HTML page, originally scoped per `PROJECT_PACKAGE.md` (the Lv4 spec this
@@ -99,7 +116,7 @@ See `.claude/skills/podcast-studio.md` for details.
 
 ## Development
 
-- Branch: `claude/execution-9vl80x` (feature development)
+- Branch: `ccr-565aa327-64pw8q` (feature development)
 - Main: `main` (production, auto-deployed to GitHub Pages)
 
 ## Key Files
@@ -114,6 +131,9 @@ See `.claude/skills/podcast-studio.md` for details.
 - `podcast-studio/index.html` - Podcast Studio app (recording/editing via Web Audio API)
 - `podcast-studio/manifest.json` - Podcast Studio PWA configuration (scope: `/podcast-studio/`)
 - `podcast-studio/sw.js` - Podcast Studio Service Worker
+- `screenshot-studio/index.html` - Screenshot Studio app (capture, gallery, IndexedDB)
+- `screenshot-studio/manifest.json` - Screenshot Studio PWA configuration (scope: `/screenshot-studio/`)
+- `screenshot-studio/sw.js` - Screenshot Studio Service Worker
 - `tools/index.html` - Threadsデモ app (localStorage-backed, no login/sync)
 - `tools/app.js` - localStorage CRUD helpers for tools/
 - `tools/README.md` - Docs for tools/ (no setup required)
