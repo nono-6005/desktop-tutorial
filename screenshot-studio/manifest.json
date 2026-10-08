@@ -1,0 +1,56 @@
+{
+  "name": "Screenshot Studio",
+  "short_name": "Screenshots",
+  "description": "ブラウザ内でスクリーンショットを撮影・編集・保存するPWAアプリ",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#2563eb",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect fill='%232563eb' width='192' height='192'/><text x='50%' y='50%' font-size='80' fill='white' text-anchor='middle' dominant-baseline='central'>📸</text></svg>",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect fill='%232563eb' width='512' height='512'/><text x='50%' y='50%' font-size='200' fill='white' text-anchor='middle' dominant-baseline='central'>📸</text></svg>",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 540 720'><rect fill='%232563eb' width='540' height='720'/><text x='270' y='360' font-size='120' fill='white' text-anchor='middle' dominant-baseline='central'>📸</text></svg>",
+      "sizes": "540x720",
+      "type": "image/svg+xml",
+      "form_factor": "narrow",
+      "purpose": "any"
+    },
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1280 720'><rect fill='%232563eb' width='1280' height='720'/><text x='640' y='360' font-size='120' fill='white' text-anchor='middle' dominant-baseline='central'>📸</text></svg>",
+      "sizes": "1280x720",
+      "type": "image/svg+xml",
+      "form_factor": "wide",
+      "purpose": "any"
+    }
+  ],
+  "categories": ["productivity"],
+  "shortcuts": [
+    {
+      "name": "全画面撮影",
+      "short_name": "撮影",
+      "description": "すぐにスクリーンショットを撮影",
+      "url": "./index.html",
+      "icons": [
+        {
+          "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect fill='%232563eb' width='192' height='192'/><text x='50%' y='50%' font-size='80' fill='white' text-anchor='middle' dominant-baseline='central'>📸</text></svg>",
+          "sizes": "192x192"
+        }
+      ]
+    }
+  ]
+}

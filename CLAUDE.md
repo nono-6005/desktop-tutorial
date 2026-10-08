@@ -47,6 +47,21 @@ no backend) an API key can't be kept secret and would let anyone run up charges 
 account. This app therefore makes **no external network requests at all** — everything
 stays on-device. Do not reintroduce client-side API-key calls here.
 
+### screenshot-studio (Screenshot Studio)
+
+A PWA app for capturing screens/windows/tabs (Chrome `getDisplayMedia`):
+- Capture target picked in Chrome's share dialog (entire screen, other apps' windows, or tabs)
+- Full capture or drag-to-select region crop
+- "共有を開始" keeps the share alive for repeated captures; floating capture buttons via Document Picture-in-Picture (Chrome 116+)
+- In-app shortcuts only (Alt+S full / Alt+R region) — a web app cannot register OS-wide global hotkeys
+- Saves to IndexedDB, gallery, PNG/JPEG/WebP download
+- Offline support via Service Worker, PWA installation
+
+**Live:** https://nono-6005.github.io/desktop-tutorial/screenshot-studio/
+
+Like memo and sns-launcher, this is a build-free single `index.html` with vanilla JS.
+All screenshot data is stored locally in IndexedDB on your device — no external uploads.
+
 ### tools (Threadsデモ)
 
 A build-free HTML page, originally scoped per `PROJECT_PACKAGE.md` (the Lv4 spec this
@@ -99,7 +114,7 @@ See `.claude/skills/podcast-studio.md` for details.
 
 ## Development
 
-- Branch: `claude/execution-9vl80x` (feature development)
+- Branch: `ccr-565aa327-64pw8q` (feature development)
 - Main: `main` (production, auto-deployed to GitHub Pages)
 
 ## Key Files
@@ -114,6 +129,9 @@ See `.claude/skills/podcast-studio.md` for details.
 - `podcast-studio/index.html` - Podcast Studio app (recording/editing via Web Audio API)
 - `podcast-studio/manifest.json` - Podcast Studio PWA configuration (scope: `/podcast-studio/`)
 - `podcast-studio/sw.js` - Podcast Studio Service Worker
+- `screenshot-studio/index.html` - Screenshot Studio app (capture, gallery, IndexedDB)
+- `screenshot-studio/manifest.json` - Screenshot Studio PWA configuration (scope: `./`, i.e. its own folder)
+- `screenshot-studio/sw.js` - Screenshot Studio Service Worker
 - `tools/index.html` - Threadsデモ app (localStorage-backed, no login/sync)
 - `tools/app.js` - localStorage CRUD helpers for tools/
 - `tools/README.md` - Docs for tools/ (no setup required)
@@ -131,7 +149,7 @@ app. Do not add a new app directly at the repo root — always give it its own f
 
 ## Technical Stack
 
-- **Frontend:** Vanilla JavaScript, HTML5, CSS3 (all three apps; build-free single-file)
+- **Frontend:** Vanilla JavaScript, HTML5, CSS3 (all apps; build-free single-file)
 - **Storage:** IndexedDB / localStorage (browser local storage)
 - **Deployment:** GitHub Pages
 - **PWA:** manifest.json + Service Worker
