@@ -7,7 +7,7 @@
 - [メモ](./memo/) — Markdown対応のローカルメモアプリ
 - [SNS Quick Launcher](./sns-launcher/) — 複数SNSアカウントをワンクリックで開くランチャー
 - [Podcast Studio](./podcast-studio/) — 複数トラック録音・ミックス＆AI処理ができるポッドキャスト編集アプリ
-- [Screenshot Studio](./screenshot-studio/) — ブラウザ内でスクリーンショット撮影・管理するアプリ
+- [Screenshot Studio](./スクショ/) — ブラウザ内でスクリーンショット撮影・管理するアプリ
 - [Threadsデモ](./tools/) — 投稿・ツリー投稿の表示確認（localStorageにローカル保存、端末間同期なし）
 
 メモ、SNS Launcher、Podcast Studio、Screenshot Studioは独立したPWA（それぞれ専用のmanifest.json・Service Workerを持つ）です。
