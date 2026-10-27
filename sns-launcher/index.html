@@ -303,6 +303,28 @@
             background: #ff5252;
         }
         
+        .account-item-actions {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+            flex-shrink: 0;
+        }
+
+        .btn-edit-item {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 4px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            flex-shrink: 0;
+        }
+
+        .btn-edit-item:hover {
+            background: #5568d3;
+        }
+
         .empty-state {
             text-align: center;
             padding: 20px;
@@ -397,11 +419,11 @@
     <!-- 追加モーダル -->
     <div class="modal" id="addModal" onclick="if(event.target.id==='addModal')closeAddModal()">
         <div class="modal-content">
-            <div class="modal-header">アカウント追加</div>
-            
+            <div class="modal-header" id="addModalTitle">アカウント追加</div>
+
             <div class="form-group">
                 <label>プラットフォーム</label>
-                <select id="platformSelect">
+                <select id="platformSelect" onchange="updateInputHint()">
                     <option value="">選択してください</option>
                     <option value="threads">Threads</option>
                     <option value="x">X (Twitter)</option>
@@ -437,7 +459,7 @@
 
             <div class="form-actions">
                 <button class="btn-secondary" onclick="closeAddModal()">キャンセル</button>
-                <button class="btn-primary" onclick="addAccount()">追加</button>
+                <button class="btn-primary" id="addSubmitBtn" onclick="saveAccount()">追加</button>
             </div>
         </div>
     </div>
@@ -446,6 +468,9 @@
     <div class="modal" id="editModal" onclick="if(event.target.id==='editModal')closeEditModal()">
         <div class="modal-content">
             <div class="modal-header">アカウント管理</div>
+            <div class="group-title" style="color:#666;">グループ</div>
+            <div id="groupManager"></div>
+            <div class="group-title" style="color:#666; margin-top: 16px;">アカウント</div>
             <div id="accountsList" class="account-list"></div>
             <div class="form-actions">
                 <button class="btn-secondary" onclick="closeEditModal()" style="flex: 1;">閉じる</button>
@@ -502,6 +527,10 @@
                 urlPattern: (u) => `https://note.com/${u.replace('@', '')}`
             }
         };
+
+        let editingId = null;
+        let returnToEditModal = false;
+        let managedGroups = [];
 
         function loadAccounts() {
             const saved = localStorage.getItem('snsAccounts');
@@ -587,20 +616,56 @@
         }
 
         function openAddModal() {
+            editingId = null;
+            returnToEditModal = false;
+            fillAccountForm({ platform: '', url: '', displayName: '', description: '', group: '' });
+            document.getElementById('addModalTitle').textContent = 'アカウント追加';
+            document.getElementById('addSubmitBtn').textContent = '追加';
             document.getElementById('addModal').classList.add('active');
-            document.getElementById('platformSelect').value = '';
-            document.getElementById('usernameInput').value = '';
-            document.getElementById('displayNameInput').value = '';
-            document.getElementById('descriptionInput').value = '';
-            document.getElementById('groupInput').value = '';
+        }
 
-            const groupOptions = document.getElementById('groupOptions');
+        function openEditAccount(id) {
+            const acc = loadAccounts().find(a => a.id === id);
+            if (!acc) return;
+            editingId = id;
+            returnToEditModal = true;
+            fillAccountForm(acc);
+            document.getElementById('addModalTitle').textContent = 'アカウント編集';
+            document.getElementById('addSubmitBtn').textContent = '保存';
+            closeEditModal();
+            document.getElementById('addModal').classList.add('active');
+        }
+
+        function fillAccountForm(acc) {
+            document.getElementById('platformSelect').value = acc.platform;
+            document.getElementById('usernameInput').value = acc.url;
+            document.getElementById('displayNameInput').value = acc.displayName;
+            document.getElementById('descriptionInput').value = acc.description || '';
+            document.getElementById('groupInput').value = acc.group || '';
+            updateInputHint();
+
             const groups = [...new Set(loadAccounts().map(a => (a.group || '').trim()).filter(Boolean))];
-            groupOptions.innerHTML = groups.map(g => `<option value="${g.replace(/"/g, '&quot;')}">`).join('');
+            document.getElementById('groupOptions').innerHTML = groups.map(g => `<option value="${escapeHtml(g)}">`).join('');
+        }
+
+        function updateInputHint() {
+            const platform = document.getElementById('platformSelect').value;
+            document.getElementById('usernameInput').placeholder = platform === 'youtube'
+                ? '例: @channelname / UCxxxx（チャンネルID） / youtube.com/...'
+                : '例: @username または https://...';
         }
 
         function closeAddModal() {
             document.getElementById('addModal').classList.remove('active');
+            editingId = null;
+            if (returnToEditModal) {
+                returnToEditModal = false;
+                openEditModal();
+            }
+        }
+
+        function escapeHtml(text) {
+            return String(text).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
         }
 
         function openEditModal() {
@@ -613,6 +678,7 @@
         }
 
         function renderAccountsList() {
+            renderGroupManager();
             const accounts = loadAccounts();
             const list = document.getElementById('accountsList');
 
@@ -628,23 +694,68 @@
                     return `
                         <div class="account-item">
                             <div class="account-item-info">
-                                <div class="account-item-platform">${platform.name} - ${acc.displayName}</div>
-                                <div class="account-item-url">${acc.url}</div>
-                                ${acc.description ? `<div class="account-item-desc">📝 ${acc.description}</div>` : ''}
+                                <div class="account-item-platform">${platform.name} - ${escapeHtml(acc.displayName)}</div>
+                                <div class="account-item-url">${escapeHtml(acc.url)}</div>
+                                ${acc.description ? `<div class="account-item-desc">📝 ${escapeHtml(acc.description)}</div>` : ''}
                             </div>
-                            <button class="btn-delete" onclick="deleteAccount(${acc.id})">削除</button>
+                            <div class="account-item-actions">
+                                <button class="btn-edit-item" onclick="openEditAccount(${acc.id})">編集</button>
+                                <button class="btn-delete" onclick="deleteAccount(${acc.id})">削除</button>
+                            </div>
                         </div>
                     `;
                 }).join('');
                 const title = groupName ? groupName : (grouped.length > 1 ? 'その他' : '');
-                return `${title ? `<div class="group-title" style="color:#666;">${title}</div>` : ''}${items}`;
+                return `${title ? `<div class="group-title" style="color:#666;">${escapeHtml(title)}</div>` : ''}${items}`;
             }).join('');
         }
 
-        function addAccount() {
+        function renderGroupManager() {
+            managedGroups = [...new Set(loadAccounts().map(a => (a.group || '').trim()).filter(Boolean))];
+            const box = document.getElementById('groupManager');
+            if (managedGroups.length === 0) {
+                box.innerHTML = '<div class="empty-state">グループはまだありません（アカウント追加時にグループ名を入力すると作られます）</div>';
+                return;
+            }
+            box.innerHTML = managedGroups.map((g, i) => `
+                <div class="account-item">
+                    <div class="account-item-info">
+                        <div class="account-item-platform">${escapeHtml(g)}</div>
+                    </div>
+                    <div class="account-item-actions">
+                        <button class="btn-edit-item" onclick="renameGroup(${i})">名前変更</button>
+                        <button class="btn-delete" onclick="dissolveGroup(${i})">解除</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function renameGroup(index) {
+            const from = managedGroups[index];
+            const to = (prompt('新しいグループ名', from) || '').trim();
+            if (!to || to === from) return;
+            saveAccounts(loadAccounts().map(a => (a.group || '').trim() === from ? { ...a, group: to } : a));
+            renderAccountsList();
+        }
+
+        function dissolveGroup(index) {
+            const name = managedGroups[index];
+            if (!confirm(`グループ「${name}」を解除しますか？\nアカウントは削除されず、無所属になります。`)) return;
+            saveAccounts(loadAccounts().map(a => (a.group || '').trim() === name ? { ...a, group: '' } : a));
+            renderAccountsList();
+        }
+
+        function toUrl(platform, input) {
+            if (/^https?:\/\//i.test(input)) return input;
+            if (/^[\w-]+(\.[\w-]+)*\.[a-z]{2,}\//i.test(input)) return `https://${input}`;
+            if (platform === 'youtube' && /^UC[\w-]{22}$/.test(input)) return `https://www.youtube.com/channel/${input}`;
+            return PLATFORMS[platform].urlPattern(input);
+        }
+
+        function saveAccount() {
             const platform = document.getElementById('platformSelect').value;
-            let input = document.getElementById('usernameInput').value.trim();
-            const displayName = document.getElementById('displayNameInput').value.trim() || PLATFORMS[platform].name;
+            const input = document.getElementById('usernameInput').value.trim();
+            const displayName = document.getElementById('displayNameInput').value.trim() || PLATFORMS[platform]?.name;
             const description = document.getElementById('descriptionInput').value.trim();
             const group = document.getElementById('groupInput').value.trim();
 
@@ -653,24 +764,15 @@
                 return;
             }
 
-            let urlToSave;
-            if (input.startsWith('http://') || input.startsWith('https://')) {
-                urlToSave = input;
+            const fields = { platform, url: toUrl(platform, input), displayName, description, group };
+            const accounts = loadAccounts();
+            if (editingId !== null) {
+                const target = accounts.find(a => a.id === editingId);
+                if (target) Object.assign(target, fields);
             } else {
-                urlToSave = PLATFORMS[platform].urlPattern(input);
+                accounts.push({ id: Math.max(...accounts.map(a => a.id), 0) + 1, ...fields });
             }
 
-            const accounts = loadAccounts();
-            const newAccount = {
-                id: Math.max(...accounts.map(a => a.id), 0) + 1,
-                platform,
-                url: urlToSave,
-                displayName,
-                description,
-                group
-            };
-
-            accounts.push(newAccount);
             saveAccounts(accounts);
             closeAddModal();
         }
