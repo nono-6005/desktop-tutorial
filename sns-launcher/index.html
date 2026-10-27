@@ -453,8 +453,8 @@
 
             <div class="form-group">
                 <label>グループ</label>
-                <input type="text" id="groupInput" list="groupOptions" placeholder="例: 仕事用、プライベート用など（空欄可）">
-                <datalist id="groupOptions"></datalist>
+                <select id="groupSelect" onchange="onGroupSelectChange()"></select>
+                <input type="text" id="groupInput" placeholder="新しいグループ名" style="display: none; margin-top: 8px;">
             </div>
 
             <div class="form-actions">
@@ -642,10 +642,26 @@
             document.getElementById('usernameInput').value = acc.url;
             document.getElementById('displayNameInput').value = acc.displayName;
             document.getElementById('descriptionInput').value = acc.description || '';
-            document.getElementById('groupInput').value = acc.group || '';
+            fillGroupSelect(acc.group || '');
             updateInputHint();
+        }
 
-            document.getElementById('groupOptions').innerHTML = loadGroups().map(g => `<option value="${escapeHtml(g)}">`).join('');
+        function fillGroupSelect(current) {
+            const groups = loadGroups();
+            const select = document.getElementById('groupSelect');
+            select.innerHTML = '<option value="">無所属</option>'
+                + groups.map(g => `<option value="${escapeHtml(g)}">${escapeHtml(g)}</option>`).join('')
+                + '<option value="__new__">＋ 新しいグループ…</option>';
+            select.value = groups.includes(current) ? current : '';
+            document.getElementById('groupInput').value = '';
+            document.getElementById('groupInput').style.display = 'none';
+        }
+
+        function onGroupSelectChange() {
+            const isNew = document.getElementById('groupSelect').value === '__new__';
+            const input = document.getElementById('groupInput');
+            input.style.display = isNew ? 'block' : 'none';
+            if (isNew) input.focus();
         }
 
         function updateInputHint() {
@@ -788,7 +804,8 @@
             const input = document.getElementById('usernameInput').value.trim();
             const displayName = document.getElementById('displayNameInput').value.trim() || PLATFORMS[platform]?.name;
             const description = document.getElementById('descriptionInput').value.trim();
-            const group = document.getElementById('groupInput').value.trim();
+            const selectedGroup = document.getElementById('groupSelect').value;
+            const group = selectedGroup === '__new__' ? document.getElementById('groupInput').value.trim() : selectedGroup;
 
             if (!platform || !input) {
                 alert('プラットフォームとURLを入力してください');
