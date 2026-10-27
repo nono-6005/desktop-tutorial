@@ -469,6 +469,7 @@
         <div class="modal-content">
             <div class="modal-header">アカウント管理</div>
             <div class="group-title" style="color:#666;">グループ</div>
+            <button class="btn-secondary" onclick="addGroup()" style="width: 100%; margin-bottom: 8px;">＋ グループ追加</button>
             <div id="groupManager"></div>
             <div class="group-title" style="color:#666; margin-top: 16px;">アカウント</div>
             <div id="accountsList" class="account-list"></div>
@@ -644,8 +645,7 @@
             document.getElementById('groupInput').value = acc.group || '';
             updateInputHint();
 
-            const groups = [...new Set(loadAccounts().map(a => (a.group || '').trim()).filter(Boolean))];
-            document.getElementById('groupOptions').innerHTML = groups.map(g => `<option value="${escapeHtml(g)}">`).join('');
+            document.getElementById('groupOptions').innerHTML = loadGroups().map(g => `<option value="${escapeHtml(g)}">`).join('');
         }
 
         function updateInputHint() {
@@ -710,11 +710,40 @@
             }).join('');
         }
 
+        function loadGroupNames() {
+            const saved = localStorage.getItem('snsGroups');
+            return saved ? JSON.parse(saved) : [];
+        }
+
+        function saveGroupNames(names) {
+            localStorage.setItem('snsGroups', JSON.stringify([...new Set(names)]));
+        }
+
+        function loadGroups() {
+            const names = loadGroupNames();
+            loadAccounts().forEach(a => {
+                const g = (a.group || '').trim();
+                if (g && !names.includes(g)) names.push(g);
+            });
+            return names;
+        }
+
+        function addGroup() {
+            const name = (prompt('新しいグループ名') || '').trim();
+            if (!name) return;
+            if (loadGroups().includes(name)) {
+                alert('同じ名前のグループがあります');
+                return;
+            }
+            saveGroupNames([...loadGroupNames(), name]);
+            renderAccountsList();
+        }
+
         function renderGroupManager() {
-            managedGroups = [...new Set(loadAccounts().map(a => (a.group || '').trim()).filter(Boolean))];
+            managedGroups = loadGroups();
             const box = document.getElementById('groupManager');
             if (managedGroups.length === 0) {
-                box.innerHTML = '<div class="empty-state">グループはまだありません（アカウント追加時にグループ名を入力すると作られます）</div>';
+                box.innerHTML = '<div class="empty-state">グループはまだありません（「＋ グループ追加」で作成できます）</div>';
                 return;
             }
             box.innerHTML = managedGroups.map((g, i) => `
@@ -734,6 +763,7 @@
             const from = managedGroups[index];
             const to = (prompt('新しいグループ名', from) || '').trim();
             if (!to || to === from) return;
+            saveGroupNames(loadGroupNames().map(g => g === from ? to : g));
             saveAccounts(loadAccounts().map(a => (a.group || '').trim() === from ? { ...a, group: to } : a));
             renderAccountsList();
         }
@@ -741,6 +771,7 @@
         function dissolveGroup(index) {
             const name = managedGroups[index];
             if (!confirm(`グループ「${name}」を解除しますか？\nアカウントは削除されず、無所属になります。`)) return;
+            saveGroupNames(loadGroupNames().filter(g => g !== name));
             saveAccounts(loadAccounts().map(a => (a.group || '').trim() === name ? { ...a, group: '' } : a));
             renderAccountsList();
         }
